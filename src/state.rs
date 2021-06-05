@@ -111,7 +111,6 @@ impl StatePrototype {
     ////////////////
     // Compilation
     // Check for consistency and create a State
-    // TODO: incorporate potential in the compilation process
     //
     pub fn compile(&self) -> Result<State, InvalidParamError> {
         let mut errors = Vec::new();
@@ -151,7 +150,7 @@ impl StatePrototype {
 //
 pub struct State 
 {
-    // Parameters
+    // Resources
     bound: Boundary,             // location of the 6 walls of the box
     ext_t: f64,                  // external temperature
     ext_cond: f64,               // the rate of kinetic energy transfer from the outside
@@ -159,7 +158,7 @@ pub struct State
     dt: f64,
     ext_a: Vector3<f64>,         // external acceleration applied to all particles
 
-    // Particles
+    // Entities
     particles: Vec<Particle>,
 }
 
@@ -189,6 +188,7 @@ impl State
   
     // Execute one time step
     // For now only uses leapfrog
+    // TODO: implement
     pub fn step(&mut self) {
         let dt = self.dt;
 
@@ -199,20 +199,21 @@ impl State
     }
 
     // Return a list of acceleration correspond to each particle
+    // Return the potential energy and pressure of the system
     // TODO: Also return energy and pressure data
     fn calculate_particle_acceleration(&self) 
     -> Vec<Vector3<f64>>
     {
         let bound_force = self.bound.calculate_force(&self.particles); 
-        let grid_force = self.grid.calculate_force(&self.particles);
+        let (grid_force, potential_energy) = self.grid.calculate_force(&self.particles);
        
-        let acceleration = (&self.particles, &bound_force, &grid_force).into_par_iter()
+        let accelerations = (&self.particles, &bound_force, &grid_force).into_par_iter()
            // @param bnd_f: force on particle by the bounding box
            // @param grd_f: force on particle by other particles as calculated through the grid
            .map(|(particle, bnd_f, grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_a)
            .collect();
 
-        acceleration
+        accelerations
     }
 
 }

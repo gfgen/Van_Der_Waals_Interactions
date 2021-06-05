@@ -7,7 +7,8 @@ extern crate ndarray;
 extern crate itertools;
 extern crate bevy;
 
-mod state;
+mod state; 
+mod physics;
 
 use bevy::prelude::*;
 

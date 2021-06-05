@@ -70,33 +70,3 @@ impl Particle {
 }
 
 
-////////////////////////////////////
-// A wrapper that contains a potential and its corresponding gradient
-// Both are Closures/Function pointers
-
-pub struct Potential<F1, F2>
-where F1: Fn(&Particle, &Particle) -> f64,
-      F1: Send + Sync + 'static,
-      F2: Fn(&Particle, &Particle) -> Vector3<f64>,
-      F2: Send + Sync + 'static,
-{
-    func: F1,
-    grad: F2,
-}
-
-impl<F1, F2> Potential<F1, F2> 
-where F1: Fn(&Particle, &Particle) -> f64,
-      F1: Send + Sync + 'static,
-      F2: Fn(&Particle, &Particle) -> Vector3<f64>,
-      F2: Send + Sync + 'static,
-{
-    pub fn eval(&self, target: &Particle, other: &Particle) -> f64 {
-        let func = &self.func;
-        func(target, other)
-    }
-
-    pub fn grad(&self, target: &Particle, other: &Particle) -> Vector3<f64> {
-        let grad = &self.grad;
-        grad(target, other)
-    }
-}
