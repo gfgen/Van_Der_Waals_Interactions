@@ -11,10 +11,9 @@ extern crate rand;
 
 mod state; 
 mod physics;
-mod interactivity;
 
 use bevy::prelude::*;
-use bevy_flycam::PlayerPlugin;
+use bevy_flycam::{NoCameraPlayerPlugin, FlyCam};
 use state::particle::Particle;
 
 // TODO: Clean up main.rs
@@ -24,12 +23,12 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     state: Res<state::State>
 ) {
+    // Inserting spheres
     let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere { 
                 radius: 0.1,
                 subdivisions: 0
     }));
     let white_mat = materials.add(Color::rgb(1., 0.9, 0.9).into());
-    // sphere
     let n = state.particles.len();
     for _i in 0..n {
         commands.spawn()
@@ -42,12 +41,12 @@ fn setup(
     }
 
     // Camera
-/*     commands.spawn()
-        .insert_bundle(PerspectiveCameraBundle {
-            transform: Transform::from_matrix(Mat4::from_translation(
-                Vec3::new(0.0, 20.0, 4.0))),
+    commands
+        .spawn_bundle(PerspectiveCameraBundle {
+            transform: Transform::from_xyz(5.0, 0.0, -5.0).looking_at(Vec3::X, Vec3::Y),
             ..Default::default()
-        }); */
+        })
+        .insert(FlyCam);
 
         // Light
     commands.spawn()
@@ -88,15 +87,20 @@ fn prune(particles: Vec<Particle>) -> Vec<Particle> {
 }
 
 fn main() -> Result<(), state::error::InvalidParamError> {
-    let temp = 1.0;
+    let temp = 1.5;
     let mut particles = vec![];
     for _i in 0..1000 {
         particles.push(Particle::new()
-            .set_pos(rand::random::<f64>() * 1.5 + 2.0, rand::random::<f64>() * 1.5 + 2.0, rand::random::<f64>() * 1.5 + 2.0))
-            .set_vel(rand::random);
+            .set_pos(rand::random::<f64>() * 2.5 + 5.0, rand::random::<f64>() * 2.5 + 5.0, rand::random::<f64>() * 2.5 + 5.0)
+            .set_vel((rand::random::<f64>() - 0.5) * temp, (rand::random::<f64>() - 0.5) * temp, (rand::random::<f64>() - 0.5) * temp));
     }
     let particles = prune(particles);
-    let state = state::StatePrototype::new().set_bound_x(10.0).set_bound_y(10.0).set_particles(particles).compile()?;
+    let state = state::StatePrototype::new()
+        .set_bound_x(10.0)
+        .set_bound_y(10.0)
+        .set_bound_z(10.0)
+        .set_particles(particles)
+        .compile()?;
 
     App::build()
         .add_startup_system(setup.system())
@@ -105,13 +109,13 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         // Set WindowDescriptor Resource to change title and size
         .insert_resource(WindowDescriptor {
             title: "Van Der Waals Interaction".to_string(),
-            width: 1200.,
+            width:  800.,
             height: 800.,
             ..Default::default()
         })
         .insert_resource(state)
         .add_system(update_state.system())
-        .add_plugin(PlayerPlugin)
+        .add_plugin(NoCameraPlayerPlugin)
         .add_plugins(DefaultPlugins)
         .run();
 

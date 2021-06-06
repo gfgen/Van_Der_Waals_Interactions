@@ -226,7 +226,7 @@ impl State
         // calculate pressure and potential energy
         // TODO: to be recorded
         let potential_energy: f64 = potential_energies.iter().sum();
-        let pressure: f64 = bound_force.iter()
+        let impulse: f64 = bound_force.iter()
            .map(|bnd_f| bnd_f.norm() * self.dt)
            .sum();
 
