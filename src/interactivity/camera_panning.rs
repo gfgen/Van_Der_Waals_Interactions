@@ -16,7 +16,7 @@ pub fn panning(
 
     for motion in pan.iter() {
         if !dragging.0 { continue; }
-        let speed = 0.001;
+        let speed = 0.0005;
         let x_mov = motion.delta[0] * speed;
         let y_mov = motion.delta[1] * speed;
         let mut trans = query.single_mut()

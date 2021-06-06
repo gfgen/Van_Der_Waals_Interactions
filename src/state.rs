@@ -159,7 +159,7 @@ pub struct State
     ext_a: Vector3<f64>,         // external acceleration applied to all particles
 
     // Entities
-    particles: Vec<Particle>,
+    pub particles: Vec<Particle>,
 }
 
 impl State

@@ -3506,6 +3506,7 @@ dependencies = [
  "itertools",
  "nalgebra",
  "ndarray",
+ "rand 0.8.3",
  "rayon",
  "ringbuffer",
 ]

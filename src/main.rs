@@ -6,6 +6,7 @@ extern crate nalgebra as na;
 extern crate ndarray;
 extern crate itertools;
 extern crate bevy;
+extern crate rand;
 
 mod state; 
 mod physics;
@@ -13,24 +14,29 @@ mod interactivity;
 
 use bevy::prelude::*;
 use state::particle::Particle;
-use std::error::Error;
 
+// TODO: Clean up main.rs
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // plane
-    commands.spawn()
-        .insert_bundle(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Icosphere { 
-                radius: 2.0,
-                subdivisions: 1
-            })),
-            material: materials.add(Color::rgb(1., 0.9, 0.9).into()),
-            transform: Transform::from_translation(Vec3::new(4., 0., 4.)),
-            ..Default::default()
-        });
+    let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere { 
+                radius: 0.1,
+                subdivisions: 0
+    }));
+    let white_mat = materials.add(Color::rgb(1., 0.9, 0.9).into());
+    // sphere
+    for _i in 0..30 {
+        commands.spawn()
+            .insert_bundle(PbrBundle {
+                mesh: sphere_mesh.clone(),
+                material: white_mat.clone(),
+                transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+                ..Default::default()
+            });
+    }
+
     // Camera
     commands.spawn()
         .insert_bundle(PerspectiveCameraBundle {
@@ -48,11 +54,32 @@ fn setup(
         });
 }
 
+fn update_state(
+    mut state: ResMut<state::State>,
+    mut query: Query<&mut Transform, With<Handle<Mesh>>>
+) {
+    for _i in 0..50 {
+        state.step();
+    }
+
+    for (mut t, particle) in query.iter_mut().zip(state.particles.iter()) {
+        let pos = particle.get_pos();
+        *t = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
+    }
+}
+
 fn main() -> Result<(), state::error::InvalidParamError> {
-/*     App::build()
+    let mut particles = vec![];
+    for _i in 0..30 {
+        particles.push(Particle::new()
+            .set_pos(rand::random::<f64>() * 1.5 + 2.0, rand::random::<f64>() * 1.5 + 2.0, rand::random::<f64>() * 1.5 + 2.0));
+    }
+    let state = state::StatePrototype::new().set_particles(particles).compile()?;
+
+    App::build()
         .add_startup_system(setup.system())
         // Set antialiasing to use 4 samples
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa { samples: 2 })
         // Set WindowDescriptor Resource to change title and size
         .insert_resource(WindowDescriptor {
             title: "Van Der Waals Interaction".to_string(),
@@ -60,16 +87,11 @@ fn main() -> Result<(), state::error::InvalidParamError> {
             height: 800.,
             ..Default::default()
         })
+        .insert_resource(state)
+        .add_system(update_state.system())
         .add_plugin(interactivity::camera_panning::CameraPanning)
         .add_plugins(DefaultPlugins)
-        .run(); */
-
-    let particles = vec![Particle::new().set_pos(1.0, 1.0, 1.0).set_vel(1.0, 1.0, 1.0)];
-    let mut state = state::StatePrototype::new().set_particles(particles).compile()?;
-    for _i in 1..10000 {
-        state.step();
-        state.anim_render();
-    }
+        .run();
 
     Ok(())
 }

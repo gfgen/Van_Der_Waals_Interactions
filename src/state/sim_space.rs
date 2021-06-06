@@ -142,7 +142,7 @@ impl Grid {
         let mut grid = Array3::from_elem((xmax + 1, ymax + 1, zmax + 1), Vec::with_capacity(0));
         grid_locations.iter()
             .enumerate()
-            .for_each(|(i, (x, y, z))| grid[[*z, *y, *x]].push(i));
+            .for_each(|(i, (x, y, z))| grid[[*x, *y, *z]].push(i));
 
         (grid, grid_locations)
     }
