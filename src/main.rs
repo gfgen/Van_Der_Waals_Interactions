@@ -77,7 +77,7 @@ fn prune(particles: Vec<Particle>) -> Vec<Particle> {
         let mut qual = true;
         for p2 in ret.iter() {
             let r = p1.get_pos() - p2.get_pos();
-            let rnorm = r.norm();
+            let rnorm = r.length();
             if rnorm == 0.0 { continue; }
             qual = qual && rnorm >= 0.15
         } 
@@ -91,8 +91,8 @@ fn main() -> Result<(), state::error::InvalidParamError> {
     let mut particles = vec![];
     for _i in 0..1000 {
         particles.push(Particle::new()
-            .set_pos(rand::random::<f64>() * 2.5 + 5.0, rand::random::<f64>() * 2.5 + 5.0, rand::random::<f64>() * 2.5 + 5.0)
-            .set_vel((rand::random::<f64>() - 0.5) * temp, (rand::random::<f64>() - 0.5) * temp, (rand::random::<f64>() - 0.5) * temp));
+            .set_pos(rand::random::<f32>() * 2.5 + 5.0, rand::random::<f32>() * 2.5 + 5.0, rand::random::<f32>() * 2.5 + 5.0)
+            .set_vel((rand::random::<f32>() - 0.5) * temp, (rand::random::<f32>() - 0.5) * temp, (rand::random::<f32>() - 0.5) * temp));
     }
     let particles = prune(particles);
     let state = state::StatePrototype::new()

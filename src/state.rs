@@ -2,7 +2,7 @@ mod sim_space;
 pub mod particle;
 pub mod error;
 
-use na::Vector3;
+use bevy::prelude::Vec3;
 use sim_space::*;
 use particle::*;
 use error::*;
@@ -14,13 +14,13 @@ use rayon::prelude::*;
 //
 pub struct StatePrototype {
     bound: Boundary,             // location of the 6 walls of the box
-    ext_t: f64,                  // external temperature
-    ext_cond: f64,               // the rate of kinetic energy transfer from the outside
+    ext_t: f32,                  // external temperature
+    ext_cond: f32,               // the rate of kinetic energy transfer from the outside
 
-    grid_unit_size: f64,         // how big a grid point is
+    grid_unit_size: f32,         // how big a grid point is
     grid_reach: usize,           // particle interaction cutoff
-    dt: f64,                     // time step
-    ext_a: Vector3<f64>,         // external acceleration applied to all particles
+    dt: f32,                     // time step
+    ext_a: Vec3,         // external acceleration applied to all particles
     particles: Vec<Particle>,
 }
 
@@ -36,7 +36,7 @@ impl StatePrototype {
             grid_unit_size: 1.0,
             grid_reach: 1,
             dt: 0.001,
-            ext_a: Vector3::new(0.0, 0.0, 0.0),
+            ext_a: Vec3::new(0.0, 0.0, 0.0),
             particles: Vec::new(),
         }
     }
@@ -51,27 +51,27 @@ impl StatePrototype {
     //
     
     // Bound
-    pub fn set_bound_x(mut self, val: f64) -> Self {
+    pub fn set_bound_x(mut self, val: f32) -> Self {
         self.bound.x = val;
         self
     }
 
-    pub fn set_bound_y(mut self, val: f64) -> Self {
+    pub fn set_bound_y(mut self, val: f32) -> Self {
         self.bound.y = val;
         self
     }
-    pub fn set_bound_z(mut self, val: f64) -> Self {
+    pub fn set_bound_z(mut self, val: f32) -> Self {
         self.bound.z = val;
         self
     }
 
     // ext_t and ext_cond
-    pub fn set_ext_t(mut self, ext_t: f64) -> Self {
+    pub fn set_ext_t(mut self, ext_t: f32) -> Self {
         self.ext_t = ext_t;
         self
     }
 
-    pub fn set_ext_cond(mut self, ext_cond: f64) -> Self {
+    pub fn set_ext_cond(mut self, ext_cond: f32) -> Self {
         self.ext_cond = ext_cond;
         self
     }
@@ -79,7 +79,7 @@ impl StatePrototype {
     //
     // Builder for Grid
     //
-    pub fn set_grid_unit_size(mut self, unit_size: f64) -> Self {
+    pub fn set_grid_unit_size(mut self, unit_size: f32) -> Self {
         self.grid_unit_size = unit_size;
         self
     }
@@ -92,13 +92,13 @@ impl StatePrototype {
     //
     // Builder for other values
     //
-    pub fn set_dt(mut self, dt: f64) -> Self {
+    pub fn set_dt(mut self, dt: f32) -> Self {
         self.dt = dt;
         self
         
     }
 
-    pub fn set_ext_a(mut self, ext_a: Vector3<f64>) -> Self {
+    pub fn set_ext_a(mut self, ext_a: Vec3) -> Self {
         self.ext_a = ext_a;
         self
     }
@@ -152,11 +152,11 @@ pub struct State
 {
     // Resources
     bound: Boundary,             // location of the 6 walls of the box
-    ext_t: f64,                  // external temperature
-    ext_cond: f64,               // the rate of kinetic energy transfer from the outside
+    ext_t: f32,                  // external temperature
+    ext_cond: f32,               // the rate of kinetic energy transfer from the outside
     grid: Grid,
-    dt: f64,
-    ext_a: Vector3<f64>,         // external acceleration applied to all particles
+    dt: f32,
+    ext_a: Vec3,         // external acceleration applied to all particles
 
     // Entities
     pub particles: Vec<Particle>,
@@ -166,8 +166,8 @@ impl State
 {
     // Make a new State 
     // This function is only used by StatePrototype's compile method
-    fn new(bound: Boundary, ext_t: f64, ext_cond: f64, 
-        grid: Grid, dt: f64, ext_a: Vector3<f64>,
+    fn new(bound: Boundary, ext_t: f32, ext_cond: f32, 
+        grid: Grid, dt: f32, ext_a: Vec3,
         particles: Vec<Particle>) -> Self {
         Self {
             bound,
@@ -200,7 +200,7 @@ impl State
             .for_each(|particle| particle.step_pos(dt, 0.5));
 
         let accelerations = self.calculate_particle_acceleration();
-        (&mut self.particles, &accelerations).into_par_iter()
+        (&mut self.particles, accelerations).into_par_iter()
             .for_each(|(particle, acc)| particle.step_vel(acc, dt, 1.0));
 
         self.particles.par_iter_mut()
@@ -211,7 +211,7 @@ impl State
     // Return the potential energy and pressure of the system
     // TODO: Also return energy and pressure data
     fn calculate_particle_acceleration(&self) 
-    -> Vec<Vector3<f64>>
+    -> Vec<Vec3>
     {
         let bound_force = self.bound.calculate_force(&self.particles); 
         let (grid_force, potential_energies) = self.grid.calculate_force(&self.particles);
@@ -219,15 +219,15 @@ impl State
         let accelerations = (&self.particles, &bound_force, &grid_force).into_par_iter()
            // @param bnd_f: force on particle by the bounding box
            // @param grd_f: force on particle by other particles as calculated through the grid
-           .map(|(particle, bnd_f, grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_a)
+           .map(|(particle, &bnd_f, &grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_a)
            .collect();
 
 
         // calculate pressure and potential energy
         // TODO: to be recorded
-        let potential_energy: f64 = potential_energies.iter().sum();
-        let impulse: f64 = bound_force.iter()
-           .map(|bnd_f| bnd_f.norm() * self.dt)
+        let potential_energy: f32 = potential_energies.iter().sum();
+        let impulse: f32 = bound_force.iter()
+           .map(|bnd_f| bnd_f.length() * self.dt)
            .sum();
 
         accelerations

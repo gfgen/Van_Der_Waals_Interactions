@@ -1,21 +1,21 @@
-use na::Vector3;
+use bevy::prelude::Vec3;
 
 // this roughly determines how close the particle can approach each other before getting repelled
-const R0: f64 = 0.15; 
+const R0: f32 = 0.15; 
 
 // calculate force and potential on position 1
-pub fn vdw_interaction(pos_targ: &Vector3<f64>, pos_other: &Vector3<f64>, range: f64) -> (Vector3<f64>, f64) {
+pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f32) {
     let r = pos_targ - pos_other;
-    let r_norm_sqr = r.norm_squared();
+    let r_norm_sqr = r.length_squared();
 
 
     if r_norm_sqr > range.powi(2) {
-        return (Vector3::new(0.0, 0.0, 0.0), 0.0)
+        return (Vec3::new(0.0, 0.0, 0.0), 0.0)
     }
 
     // Calculate force 
     let r_unit = r / R0;
-    let r_unit2 = r_unit.norm_squared();
+    let r_unit2 = r_unit.length_squared();
     let r_unit6 = r_unit2.powi(3);
     let r_unit8 = r_unit2 * r_unit6;
     let r_unit12 = r_unit6.powi(2);

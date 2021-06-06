@@ -1,4 +1,4 @@
-use na::Vector3;
+use bevy::prelude::Vec3;
 use rayon::prelude::*;
 use ndarray::Array3;
 use itertools::iproduct;
@@ -14,11 +14,11 @@ use crate::physics;
 #[derive(Clone, Copy)]
 pub struct Grid {
     reach: usize,               // range of interactions (in grid squares) between particles
-    unit_size: f64,             // size of a single grid square
+    unit_size: f32,             // size of a single grid square
 }
 
 impl Grid {
-    pub fn new(unit_size: f64, reach: usize) -> Self {
+    pub fn new(unit_size: f32, reach: usize) -> Self {
         Self {
             reach,
             unit_size,
@@ -29,7 +29,7 @@ impl Grid {
     pub fn calculate_force(
         &self, 
         particles: &Vec<Particle>, 
-    ) -> (Vec<Vector3<f64>>, Vec<f64>)
+    ) -> (Vec<Vec3>, Vec<f32>)
     {
 
         let (grid, locations) = self.make_grid(particles);
@@ -50,7 +50,7 @@ impl Grid {
         loc: (usize, usize, usize),                         // target particle grid location
         particles: &Vec<Particle>,                          // Set of all particle
         grid: &Array3<Vec<usize>>,                          // division grid
-    ) -> (Vector3<f64>, f64)
+    ) -> (Vec3, f32)
     {
 
         let relevant_grid_points = self.generate_neighbor_grid_loc(loc, grid);
@@ -60,14 +60,14 @@ impl Grid {
             .filter(|&&pid| pid != tpid)                           // remove target particle id
             .map(|&pid| &particles[pid]);                          // retrieve particles from particle ids
         
-        let mut total_force = Vector3::from_element(0.0);
+        let mut total_force = Vec3::ZERO;
         let mut total_potential = 0.0;
         let target_particle = &particles[tpid];
         // iterate through relevant particles, sum up forces and potentials
         for particle in relevant_particles {
             let pos_targ = target_particle.get_pos();
             let pos_other = particle.get_pos();
-            let range = self.unit_size * self.reach as f64;
+            let range = self.unit_size * self.reach as f32;
 
             let (force, potential) = physics::vdw_interaction(pos_targ, pos_other, range);
 
@@ -149,10 +149,10 @@ impl Grid {
 
     // find location of a position on a grid
     // to be used internally
-    fn find_grid_location(&self, p: &Vector3<f64>) -> (isize, isize, isize) {
-        let gridx = f64::floor(p[0] / self.unit_size) as isize;
-        let gridy = f64::floor(p[1] / self.unit_size) as isize;
-        let gridz = f64::floor(p[2] / self.unit_size) as isize;
+    fn find_grid_location(&self, p: Vec3) -> (isize, isize, isize) {
+        let gridx = f32::floor(p[0] / self.unit_size) as isize;
+        let gridy = f32::floor(p[1] / self.unit_size) as isize;
+        let gridz = f32::floor(p[2] / self.unit_size) as isize;
 
         (gridx, gridy, gridz)
     }
@@ -169,14 +169,14 @@ impl Grid {
 //
 #[derive(Clone, Copy)]
 pub struct Boundary {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 
 impl Boundary {
-    const MIN_LEN: f64 = 2.0;            // Minimum length of each side of the box
-    const DEFLECT_STR: f64 = 10000.0;
+    const MIN_LEN: f32 = 2.0;            // Minimum length of each side of the box
+    const DEFLECT_STR: f32 = 10000.0;
 
     // Set up a boundary with default config
     pub fn new() -> Self {
@@ -188,12 +188,12 @@ impl Boundary {
     }
 
     // Surface area of the boundary, useful for calculating pressure
-    pub fn get_surface_area(&self) -> f64 {
+    pub fn get_surface_area(&self) -> f32 {
         (self.x * self.y + self.y * self.z + self.z * self.x) * 2.0
     }
 
     // Volume inside of the boundary
-    pub fn get_volume(&self) -> f64 {
+    pub fn get_volume(&self) -> f32 {
         self.x * self.y * self.z
     }
 
@@ -206,14 +206,14 @@ impl Boundary {
 
     // check if the position vector lies within the box
     // is used for checking the initial state of particles
-    pub fn contains_position(&self, pos: &Vector3<f64>) -> bool {
+    pub fn contains_position(&self, pos: Vec3) -> bool {
         let bound_check = self.bound_check(pos);
-        bound_check.lp_norm(1) == 0.0
+        bound_check.length_squared() == 0.0
     }
 
 
     // Return a vector of forces that keeps the particles inside the box
-    pub fn calculate_force(&self, ps: &Vec<Particle>) -> Vec<Vector3<f64>> {
+    pub fn calculate_force(&self, ps: &Vec<Particle>) -> Vec<Vec3> {
         ps.par_iter()
             .map(|p| {
                 self.calculate_force_single(p)
@@ -226,34 +226,25 @@ impl Boundary {
     //
 
     // To be used internally by calculate_force
-    fn calculate_force_single(&self, p: &Particle) -> Vector3<f64> {
+    fn calculate_force_single(&self, p: &Particle) -> Vec3 {
         let bound_check = self.bound_check(p.get_pos());
         let force = Self::DEFLECT_STR * bound_check;
         force
     }
 
-    // return a Vector3 showing the directions
+    // return a Vec3 showing the directions
     //   in which a position is out of bounds
     //   point towards the inside of the box
     // Example: If the particle is outside of the box
     //   and crossing the higher x wall by 10 units, the return value
     //   would be: (-10, 0, 0)
     // to be used internally
-    fn bound_check(&self, pos: &Vector3<f64>) -> Vector3<f64> {
-        let lower_bound = &[0.0, 0.0, 0.0];
-        let upper_bound = &[self.x, self.y, self.z];
+    fn bound_check(&self, pos: Vec3) -> Vec3 {
+        let lower_bound = Vec3::new(0.0, 0.0, 0.0);
+        let upper_bound = Vec3::new(self.x, self.y, self.z);
         
-        let lower_bound_check = Vector3::from_iterator(
-            pos.iter().zip(lower_bound)
-                .map(|(x, x_lo_bnd)|
-                    // zero out negative values
-                    f64::max(x_lo_bnd - x, 0.0)));
-
-        let upper_bound_check = Vector3::from_iterator(
-            pos.iter().zip(upper_bound)
-                .map(|(x, x_hi_bnd)| 
-                    // zero out positive values
-                    f64::min(x_hi_bnd - x, 0.0)));
+        let lower_bound_check = Vec3::max(lower_bound - pos, Vec3::ZERO); // zero out negative values
+        let upper_bound_check = Vec3::min(upper_bound - pos, Vec3::ZERO); // zero out positive values
 
         lower_bound_check + upper_bound_check 
     }
