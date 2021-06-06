@@ -1,10 +1,10 @@
-use bevy::prelude::Vec3;
-use rayon::prelude::*;
-use ndarray::Array3;
-use itertools::iproduct;
-use std::cmp::{max, min};
 use super::particle::Particle;
 use crate::physics;
+use bevy::prelude::Vec3;
+use itertools::iproduct;
+use ndarray::Array3;
+use rayon::prelude::*;
+use std::cmp::{max, min};
 
 ////////////////////////////////////////////////////////////
 // Grid splits the space up into boxes
@@ -13,28 +13,21 @@ use crate::physics;
 //
 #[derive(Clone, Copy)]
 pub struct Grid {
-    reach: usize,               // range of interactions (in grid squares) between particles
-    unit_size: f32,             // size of a single grid square
+    reach: usize,   // range of interactions (in grid squares) between particles
+    unit_size: f32, // size of a single grid square
 }
 
 impl Grid {
     pub fn new(unit_size: f32, reach: usize) -> Self {
-        Self {
-            reach,
-            unit_size,
-        }
+        Self { reach, unit_size }
     }
 
     // Calculate the interactions between particles using the grid approximation
-    pub fn calculate_force(
-        &self, 
-        particles: &Vec<Vec3>, 
-    ) -> (Vec<Vec3>, Vec<f32>)
-    {
-
+    pub fn calculate_force(&self, particles: &Vec<Vec3>) -> (Vec<Vec3>, Vec<f32>) {
         let (grid, locations) = self.make_grid(particles);
-        locations.par_iter()
-            .enumerate()      // locations and particles has matching indices
+        locations
+            .par_iter()
+            .enumerate() // locations and particles has matching indices
             .map(|(particle_id, &location)| {
                 self.calculate_force_single(particle_id, location, particles, &grid)
             })
@@ -42,24 +35,23 @@ impl Grid {
     }
 
     // Calculate the total force acted on a particle by all nearby particles
-    // Calculate the potential energy of the system 
+    // Calculate the potential energy of the system
     // To be used internally
     fn calculate_force_single(
-        &self, 
-        tpid: usize,                                        // target particle index
-        loc: (usize, usize, usize),                         // target particle grid location
-        particles: &Vec<Vec3>,                              // Set of all particle positions
-        grid: &Array3<Vec<usize>>,                          // division grid
-    ) -> (Vec3, f32)
-    {
-
+        &self,
+        tpid: usize,                // target particle index
+        loc: (usize, usize, usize), // target particle grid location
+        particles: &Vec<Vec3>,      // Set of all particle positions
+        grid: &Array3<Vec<usize>>,  // division grid
+    ) -> (Vec3, f32) {
         let relevant_grid_points = self.generate_neighbor_grid_loc(loc, grid);
 
-        let relevant_particles = relevant_grid_points.into_iter()
-            .flat_map(|(x, y, z)| &grid[[x, y, z]])    // retrieve particle ids from grid points
-            .filter(|&&pid| pid != tpid)                           // remove target particle id
-            .map(|&pid| particles[pid]);                          // retrieve particles from particle ids
-        
+        let relevant_particles = relevant_grid_points
+            .into_iter()
+            .flat_map(|(x, y, z)| &grid[[x, y, z]]) // retrieve particle ids from grid points
+            .filter(|&&pid| pid != tpid) // remove target particle id
+            .map(|&pid| particles[pid]); // retrieve particles from particle ids
+
         let mut total_force = Vec3::ZERO;
         let mut total_potential = 0.0;
         let target_particle = particles[tpid];
@@ -67,7 +59,8 @@ impl Grid {
         for other_particle in relevant_particles {
             let range = self.unit_size * self.reach as f32;
 
-            let (force, potential) = physics::vdw_interaction(target_particle, other_particle, range);
+            let (force, potential) =
+                physics::vdw_interaction(target_particle, other_particle, range);
 
             total_force += force;
             total_potential += potential;
@@ -81,23 +74,19 @@ impl Grid {
     //   Is a valid index in the grid
     // To be used internally
     fn generate_neighbor_grid_loc(
-        &self, 
-        loc: (usize, usize, usize), 
-        grid: &Array3<Vec<usize>> 
+        &self,
+        loc: (usize, usize, usize),
+        grid: &Array3<Vec<usize>>,
     ) -> Vec<(usize, usize, usize)> {
-
         let (this_x, this_y, this_z) = loc;
         let (dim_x, dim_y, dim_z) = grid.dim();
 
         // iterators that cover the range of possible index values
-        let xs = (this_x.saturating_sub(self.reach) ..= this_x + self.reach)
-            .filter(|&x| x < dim_x);
+        let xs = (this_x.saturating_sub(self.reach)..=this_x + self.reach).filter(|&x| x < dim_x);
 
-        let ys = (this_y.saturating_sub(self.reach) ..= this_y + self.reach)
-            .filter(|&y| y < dim_y);
+        let ys = (this_y.saturating_sub(self.reach)..=this_y + self.reach).filter(|&y| y < dim_y);
 
-        let zs = (this_z.saturating_sub(self.reach) ..= this_z + self.reach)
-            .filter(|&z| z < dim_z);
+        let zs = (this_z.saturating_sub(self.reach)..=this_z + self.reach).filter(|&z| z < dim_z);
 
         // return the cartesian product of xs, yx, zs
         iproduct!(xs, ys, zs).collect()
@@ -110,35 +99,38 @@ impl Grid {
     // to be used internally
     fn make_grid(&self, ps: &Vec<Vec3>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
         // get a list of positional indicies from the particles
-        let grid_locations: Vec<_> = ps.par_iter()
-            .map(|&p| self.find_grid_location(p))
-            .collect();
+        let grid_locations: Vec<_> = ps.par_iter().map(|&p| self.find_grid_location(p)).collect();
 
         // find the smallest indexes to set the position of the origin
         let init_min = std::isize::MAX;
-        let (xmin, ymin, zmin) = grid_locations.iter()
-            .fold((init_min, init_min, init_min), |(xacc, yacc, zacc), (x, y, z)| {
-                (min(xacc, *x), min(yacc, *y), min(zacc, *z))
-            });
+        let (xmin, ymin, zmin) = grid_locations.iter().fold(
+            (init_min, init_min, init_min),
+            |(xacc, yacc, zacc), (x, y, z)| (min(xacc, *x), min(yacc, *y), min(zacc, *z)),
+        );
 
         // translate the coordinate so that the smallest indices are at 0
-        let grid_locations: Vec<_> = grid_locations.par_iter()
-            .map(|(x, y, z)| 
-                ((x - xmin) as usize, 
-                 (y - ymin) as usize, 
-                 (z - zmin) as usize))
+        let grid_locations: Vec<_> = grid_locations
+            .par_iter()
+            .map(|(x, y, z)| {
+                (
+                    (x - xmin) as usize,
+                    (y - ymin) as usize,
+                    (z - zmin) as usize,
+                )
+            })
             .collect();
 
         // find the largest indecies to find the size of the grid
         let init_max = std::usize::MIN;
-        let (xmax, ymax, zmax) = grid_locations.iter()
-            .fold((init_max, init_max, init_max), |(xacc, yacc, zacc), (x, y, z)| {
-                (max(xacc, *x), max(yacc, *y), max(zacc, *z))
-            });
+        let (xmax, ymax, zmax) = grid_locations.iter().fold(
+            (init_max, init_max, init_max),
+            |(xacc, yacc, zacc), (x, y, z)| (max(xacc, *x), max(yacc, *y), max(zacc, *z)),
+        );
 
         // Making and adding indicies into the grid
         let mut grid = Array3::from_elem((xmax + 1, ymax + 1, zmax + 1), Vec::with_capacity(0));
-        grid_locations.iter()
+        grid_locations
+            .iter()
             .enumerate()
             .for_each(|(i, (x, y, z))| grid[[*x, *y, *z]].push(i));
 
@@ -154,9 +146,7 @@ impl Grid {
 
         (gridx, gridy, gridz)
     }
-
 }
-
 
 ////////////////////////////////////////////////////////////////
 // Boundary sets the limit of the simulation box
@@ -173,7 +163,7 @@ pub struct Boundary {
 }
 
 impl Boundary {
-    const MIN_LEN: f32 = 2.0;            // Minimum length of each side of the box
+    const MIN_LEN: f32 = 2.0; // Minimum length of each side of the box
     const DEFLECT_STR: f32 = 10000.0;
 
     // Set up a boundary with default config
@@ -197,9 +187,7 @@ impl Boundary {
 
     // Check for a valid box size
     pub fn is_valid(&self) -> bool {
-        self.x >= Self::MIN_LEN && 
-            self.y >= Self::MIN_LEN && 
-            self.z >= Self::MIN_LEN
+        self.x >= Self::MIN_LEN && self.y >= Self::MIN_LEN && self.z >= Self::MIN_LEN
     }
 
     // check if the position vector lies within the box
@@ -209,13 +197,10 @@ impl Boundary {
         bound_check.length_squared() == 0.0
     }
 
-
     // Return a vector of forces that keeps the particles inside the box
     pub fn calculate_force(&self, ps: &Vec<Vec3>) -> Vec<Vec3> {
         ps.par_iter()
-            .map(|&p| {
-                self.calculate_force_single(p)
-            })
+            .map(|&p| self.calculate_force_single(p))
             .collect()
     }
 
@@ -240,10 +225,10 @@ impl Boundary {
     fn bound_check(&self, pos: Vec3) -> Vec3 {
         let lower_bound = Vec3::new(0.0, 0.0, 0.0);
         let upper_bound = Vec3::new(self.x, self.y, self.z);
-        
+
         let lower_bound_check = Vec3::max(lower_bound - pos, Vec3::ZERO); // zero out negative values
         let upper_bound_check = Vec3::min(upper_bound - pos, Vec3::ZERO); // zero out positive values
 
-        lower_bound_check + upper_bound_check 
+        lower_bound_check + upper_bound_check
     }
 }

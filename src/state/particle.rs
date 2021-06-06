@@ -26,23 +26,23 @@ impl Particle {
 
     pub fn set_mass(mut self, mass: f32) -> Self {
         self.mass = mass;
-        return  self;
+        return self;
     }
 
     pub fn set_pos(mut self, x: f32, y: f32, z: f32) -> Self {
         self.pos = Vec3::new(x, y, z);
-        return  self;
+        return self;
     }
 
     pub fn set_vel(mut self, x: f32, y: f32, z: f32) -> Self {
         self.vel = Vec3::new(x, y, z);
-        return  self;
+        return self;
     }
 
     /////////////////////////
     // Getters
     //
-    
+
     pub fn get_mass(&self) -> f32 {
         self.mass
     }
@@ -60,7 +60,7 @@ impl Particle {
     // Step the relevant quantities through time
     //
 
-    pub fn step_pos(&mut self, dt: f32, coeff: f32) { 
+    pub fn step_pos(&mut self, dt: f32, coeff: f32) {
         self.pos += coeff * dt * self.vel;
     }
 
@@ -68,5 +68,3 @@ impl Particle {
         self.vel += coeff * dt * acc;
     }
 }
-
-
