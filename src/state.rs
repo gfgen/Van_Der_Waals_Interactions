@@ -188,7 +188,6 @@ impl State
   
     // Execute one time step
     // For now only uses leapfrog
-    // TODO: implement
     pub fn step(&mut self) {
         let dt = self.dt;
 
@@ -196,6 +195,11 @@ impl State
             .for_each(|particle| particle.step_pos(dt, 0.5));
 
         let accelerations = self.calculate_particle_acceleration();
+        (&mut self.particles, &accelerations).into_par_iter()
+            .for_each(|(particle, acc)| particle.step_vel(acc, dt, 1.0));
+
+        self.particles.par_iter_mut()
+            .for_each(|particle| particle.step_pos(dt, 0.5));
     }
 
     // Return a list of acceleration correspond to each particle
@@ -205,13 +209,20 @@ impl State
     -> Vec<Vector3<f64>>
     {
         let bound_force = self.bound.calculate_force(&self.particles); 
-        let (grid_force, potential_energy) = self.grid.calculate_force(&self.particles);
+        let (grid_force, potential_energies) = self.grid.calculate_force(&self.particles);
        
         let accelerations = (&self.particles, &bound_force, &grid_force).into_par_iter()
            // @param bnd_f: force on particle by the bounding box
            // @param grd_f: force on particle by other particles as calculated through the grid
            .map(|(particle, bnd_f, grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_a)
            .collect();
+
+
+        // calculate pressure and potential energy
+        let potential_energy: f64 = potential_energies.iter().sum();
+        let pressure: f64 = bound_force.iter()
+           .map(|bnd_f| bnd_f.norm() * self.dt)
+           .sum();
 
         accelerations
     }
