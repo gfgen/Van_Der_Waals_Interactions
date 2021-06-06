@@ -14,8 +14,8 @@ use sim_space::*;
 //
 pub struct StatePrototype {
     bound: Boundary, // location of the 6 walls of the box
-    ext_t: f32,      // external temperature
-    ext_cond: f32,   // the rate of kinetic energy transfer from the outside
+    target_temp: f32,      // external temperature
+    inject_rate: f32,   // the rate of kinetic energy transfer from the outside
 
     grid_unit_size: f32, // how big a grid point is
     grid_reach: usize,   // particle interaction cutoff
@@ -30,8 +30,8 @@ impl StatePrototype {
     pub fn new() -> Self {
         Self {
             bound: Boundary::new(),
-            ext_t: 0.0,
-            ext_cond: 0.0,
+            target_temp: 0.0,
+            inject_rate: 0.0,
 
             grid_unit_size: 1.0,
             grid_reach: 1,
@@ -65,14 +65,14 @@ impl StatePrototype {
         self
     }
 
-    // ext_t and ext_cond
-    pub fn set_ext_t(mut self, ext_t: f32) -> Self {
-        self.ext_t = ext_t;
+    // target_temp and inject_rate
+    pub fn set_target_temp(mut self, target_temp: f32) -> Self {
+        self.target_temp = target_temp;
         self
     }
 
-    pub fn set_ext_cond(mut self, ext_cond: f32) -> Self {
-        self.ext_cond = ext_cond;
+    pub fn set_inject_rate(mut self, inject_rate: f32) -> Self {
+        self.inject_rate = inject_rate;
         self
     }
 
@@ -117,10 +117,10 @@ impl StatePrototype {
         if !self.bound.is_valid() {
             errors.push(ErrorKind::Bound);
         }
-        if self.ext_t < 0.0 {
+        if self.target_temp < 0.0 {
             errors.push(ErrorKind::ExtT);
         }
-        if self.ext_cond < 0.0 {
+        if self.inject_rate < 0.0 {
             errors.push(ErrorKind::ExtCond);
         }
         if self.grid_unit_size < 0.0 {
@@ -148,8 +148,8 @@ impl StatePrototype {
         } else {
             Ok(State::new(
                 self.bound,
-                self.ext_t,
-                self.ext_cond,
+                self.target_temp,
+                self.inject_rate,
                 Grid::new(self.grid_unit_size, self.grid_reach),
                 self.dt,
                 self.ext_a,
@@ -166,8 +166,8 @@ impl StatePrototype {
 pub struct State {
     // Resources
     bound: Boundary, // location of the 6 walls of the box
-    ext_t: f32,      // external temperature
-    ext_cond: f32,   // the rate of kinetic energy transfer from the outside
+    target_temp: f32,      // external temperature
+    inject_rate: f32,   // the rate of kinetic energy transfer from the outside
     grid: Grid,
     dt: f32,
     ext_a: Vec3, // external acceleration applied to all particles
@@ -181,8 +181,8 @@ impl State {
     // This function is only used by StatePrototype's compile method
     fn new(
         bound: Boundary,
-        ext_t: f32,
-        ext_cond: f32,
+        target_temp: f32,
+        inject_rate: f32,
         grid: Grid,
         dt: f32,
         ext_a: Vec3,
@@ -190,8 +190,8 @@ impl State {
     ) -> Self {
         Self {
             bound,
-            ext_t,
-            ext_cond,
+            target_temp,
+            inject_rate,
             grid,
             dt,
             ext_a,
@@ -200,30 +200,24 @@ impl State {
         }
     }
 
-    // Render the current state using the anim format
-    // TODO: Implement
-    pub fn anim_render(&self) {
-        for particle in self.particles.iter() {
-            let pos = particle.get_pos();
-            println!("c3 {} {} {} 0.07", pos.x, pos.y, pos.z);
-        }
-        println!("F");
-    }
 
     // Execute one time step
     // For now only uses leapfrog
     pub fn step(&mut self) {
         let dt = self.dt;
 
+        // step position
         self.particles
             .par_iter_mut()
             .for_each(|particle| particle.step_pos(dt, 0.5));
 
+        // calculate accelerations and step velocity
         let accelerations = self.calculate_particle_acceleration();
         (&mut self.particles, accelerations)
             .into_par_iter()
             .for_each(|(particle, acc)| particle.step_vel(acc, dt, 1.0));
 
+        // step position again
         self.particles
             .par_iter_mut()
             .for_each(|particle| particle.step_pos(dt, 0.5));

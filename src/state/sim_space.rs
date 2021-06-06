@@ -1,4 +1,3 @@
-use super::particle::Particle;
 use crate::physics;
 use bevy::prelude::Vec3;
 use itertools::iproduct;
