@@ -2,7 +2,6 @@
 extern crate ringbuffer as rb;
 extern crate rayon;
 extern crate clap;
-extern crate nalgebra as na;
 extern crate ndarray;
 extern crate itertools;
 extern crate bevy;
