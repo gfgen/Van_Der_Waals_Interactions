@@ -28,7 +28,7 @@ impl Grid {
     // Calculate the interactions between particles using the grid approximation
     pub fn calculate_force(
         &self, 
-        particles: &Vec<Particle>, 
+        particles: &Vec<Vec3>, 
     ) -> (Vec<Vec3>, Vec<f32>)
     {
 
@@ -48,7 +48,7 @@ impl Grid {
         &self, 
         tpid: usize,                                        // target particle index
         loc: (usize, usize, usize),                         // target particle grid location
-        particles: &Vec<Particle>,                          // Set of all particle
+        particles: &Vec<Vec3>,                              // Set of all particle positions
         grid: &Array3<Vec<usize>>,                          // division grid
     ) -> (Vec3, f32)
     {
@@ -58,18 +58,16 @@ impl Grid {
         let relevant_particles = relevant_grid_points.into_iter()
             .flat_map(|(x, y, z)| &grid[[x, y, z]])    // retrieve particle ids from grid points
             .filter(|&&pid| pid != tpid)                           // remove target particle id
-            .map(|&pid| &particles[pid]);                          // retrieve particles from particle ids
+            .map(|&pid| particles[pid]);                          // retrieve particles from particle ids
         
         let mut total_force = Vec3::ZERO;
         let mut total_potential = 0.0;
-        let target_particle = &particles[tpid];
+        let target_particle = particles[tpid];
         // iterate through relevant particles, sum up forces and potentials
-        for particle in relevant_particles {
-            let pos_targ = target_particle.get_pos();
-            let pos_other = particle.get_pos();
+        for other_particle in relevant_particles {
             let range = self.unit_size * self.reach as f32;
 
-            let (force, potential) = physics::vdw_interaction(pos_targ, pos_other, range);
+            let (force, potential) = physics::vdw_interaction(target_particle, other_particle, range);
 
             total_force += force;
             total_potential += potential;
@@ -110,10 +108,10 @@ impl Grid {
     // Returns a Grid object that contains a list of particle indices
     //     and a list of location of the corresponding particle on the grid
     // to be used internally
-    fn make_grid(&self, ps: &Vec<Particle>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
+    fn make_grid(&self, ps: &Vec<Vec3>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
         // get a list of positional indicies from the particles
         let grid_locations: Vec<_> = ps.par_iter()
-            .map(|p| self.find_grid_location(p.get_pos()))
+            .map(|&p| self.find_grid_location(p))
             .collect();
 
         // find the smallest indexes to set the position of the origin
@@ -213,9 +211,9 @@ impl Boundary {
 
 
     // Return a vector of forces that keeps the particles inside the box
-    pub fn calculate_force(&self, ps: &Vec<Particle>) -> Vec<Vec3> {
+    pub fn calculate_force(&self, ps: &Vec<Vec3>) -> Vec<Vec3> {
         ps.par_iter()
-            .map(|p| {
+            .map(|&p| {
                 self.calculate_force_single(p)
             })
             .collect()
@@ -226,8 +224,8 @@ impl Boundary {
     //
 
     // To be used internally by calculate_force
-    fn calculate_force_single(&self, p: &Particle) -> Vec3 {
-        let bound_check = self.bound_check(p.get_pos());
+    fn calculate_force_single(&self, p: Vec3) -> Vec3 {
+        let bound_check = self.bound_check(p);
         let force = Self::DEFLECT_STR * bound_check;
         force
     }

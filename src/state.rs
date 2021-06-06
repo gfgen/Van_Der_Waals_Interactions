@@ -213,8 +213,9 @@ impl State
     fn calculate_particle_acceleration(&self) 
     -> Vec<Vec3>
     {
-        let bound_force = self.bound.calculate_force(&self.particles); 
-        let (grid_force, potential_energies) = self.grid.calculate_force(&self.particles);
+        let particle_pos = self.particles.iter().map(|particle| particle.get_pos()).collect();
+        let bound_force = self.bound.calculate_force(&particle_pos); 
+        let (grid_force, potential_energies) = self.grid.calculate_force(&particle_pos);
        
         let accelerations = (&self.particles, &bound_force, &grid_force).into_par_iter()
            // @param bnd_f: force on particle by the bounding box
