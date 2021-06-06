@@ -372,6 +372,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_flycam"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf85700564f15ae65430722ad217f8b343278179098707627805d4e26f6d28b7"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_gilrs"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3502,6 +3511,7 @@ name = "van_der_waals_interactions"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_flycam",
  "clap",
  "itertools",
  "nalgebra",
