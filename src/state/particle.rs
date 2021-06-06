@@ -29,13 +29,13 @@ impl Particle {
         return  self;
     }
 
-    pub fn set_pos(mut self, pos: Vector3<f64>) -> Self {
-        self.pos = pos;
+    pub fn set_pos(mut self, x: f64, y: f64, z: f64) -> Self {
+        self.pos = Vector3::new(x, y, z);
         return  self;
     }
 
-    pub fn set_vel(mut self, vel: Vector3<f64>) -> Self {
-        self.vel = vel;
+    pub fn set_vel(mut self, x: f64, y: f64, z: f64) -> Self {
+        self.vel = Vector3::new(x, y, z);
         return  self;
     }
 

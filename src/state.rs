@@ -12,7 +12,7 @@ use rayon::prelude::*;
 // Contains all simulation initial conditions
 // Need to be compiled into a State to be useable
 //
-struct StatePrototype {
+pub struct StatePrototype {
     bound: Boundary,             // location of the 6 walls of the box
     ext_t: f64,                  // external temperature
     ext_cond: f64,               // the rate of kinetic energy transfer from the outside
@@ -128,7 +128,7 @@ impl StatePrototype {
                 |acc, x| acc && x) { errors.push(ErrorKind::Particle); }
 
         // Confirm errors and return
-        if errors.is_empty() {
+        if !errors.is_empty() {
             Err(InvalidParamError::new(errors))
         } else {
             Ok(State::new(
@@ -184,6 +184,11 @@ impl State
     // Render the current state using the anim format
     // TODO: Implement
     pub fn anim_render(&self) {
+        for particle in self.particles.iter() {
+            let pos = particle.get_pos();
+            println!("c3 {} {} {} 0.07", pos.x, pos.y, pos.z);
+        }
+        println!("F");
     }
   
     // Execute one time step
@@ -219,6 +224,7 @@ impl State
 
 
         // calculate pressure and potential energy
+        // TODO: to be recorded
         let potential_energy: f64 = potential_energies.iter().sum();
         let pressure: f64 = bound_force.iter()
            .map(|bnd_f| bnd_f.norm() * self.dt)
