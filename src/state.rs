@@ -1,12 +1,13 @@
 pub mod error;
 pub mod particle;
 pub mod state_generator;
+mod sim_systems;
+mod physics;
 mod sim_space;
 
-use bevy::prelude::Vec3;
+use bevy::prelude::*;
 use error::*;
 use particle::*;
-use rayon::prelude::*;
 use sim_space::*;
 use std::collections::VecDeque;
 
@@ -14,7 +15,7 @@ use std::collections::VecDeque;
 // Contains all simulation initial conditions
 // Need to be compiled into a State to be useable
 //
-pub struct StatePrototype {
+pub struct SimulationPrototype {
     bound: Boundary, // location of the 6 walls of the box
     target_temp: f32,      // external temperature
     inject_rate: f32,   // the rate of kinetic energy transfer from the outside
@@ -26,7 +27,7 @@ pub struct StatePrototype {
     particles: Vec<Particle>,
 }
 
-impl StatePrototype {
+impl SimulationPrototype {
     // Create a new StatePrototype with default settings
     // Parameters can be changed using builders
     pub fn new() -> Self {
@@ -120,7 +121,7 @@ impl StatePrototype {
     // Compilation
     // Check for consistency and create a State
     //
-    pub fn compile(&self) -> Result<State, InvalidParamError> {
+    pub fn compile(&self) -> Result<VDWSimulation, InvalidParamError> {
         let mut errors = Vec::new();
 
         if !self.bound.is_valid() {
@@ -155,11 +156,11 @@ impl StatePrototype {
         if !errors.is_empty() {
             Err(InvalidParamError::new(errors))
         } else {
-            Ok(State::new(
+            Ok(VDWSimulation::new(
                 self.bound,
+                Grid::new(self.grid_unit_size, self.grid_reach),
                 self.target_temp,
                 self.inject_rate,
-                Grid::new(self.grid_unit_size, self.grid_reach),
                 self.dt,
                 self.ext_a,
                 self.particles.clone(),
@@ -168,110 +169,92 @@ impl StatePrototype {
     }
 }
 
+
+/////////////////////////////
+// State component wrappers
+
+#[derive(Clone, Copy)]
+pub struct TargetTemp(f32);
+#[derive(Clone, Copy)]
+pub struct InjectRate(f32);
+#[derive(Clone, Copy)]
+pub struct Dt(f32);
+#[derive(Clone, Copy)]
+pub struct ExtAccel(Vec3);
+#[derive(Clone, Copy)]
+pub struct PotentialEnergy(f32);
+#[derive(Clone, Copy)]
+pub struct KineticEnergy(f32);
+#[derive(Clone)]
+pub struct Pressure(VecDeque<f32>);
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
-// To be used as resources in bevy
+// Is a bevy Plugin
 // Can only be created by compiling a StatePrototype
 //
-pub struct State {
+pub struct VDWSimulation {
     bound: Boundary, // location of the 6 walls of the box
-    target_temp: f32,      // external temperature
-    inject_rate: f32,   // the rate of kinetic energy transfer from the outside
+    target_temp: TargetTemp,      // external temperature
+    inject_rate: InjectRate,   // the rate of kinetic energy transfer from the outside
     grid: Grid,
-    dt: f32,
-    ext_a: Vec3, // external acceleration applied to all particles
+    dt: Dt,
+    ext_accel: ExtAccel, // external acceleration applied to all particles
 
-    pot_energy: f32,
-    kin_energy: f32,
-    pressure: VecDeque<f32>,
+    pot_energy: PotentialEnergy,
+    kin_energy: KineticEnergy,
+    pressure: Pressure,
 
     pub particles: Vec<Particle>,
 }
 
-impl State {
+impl VDWSimulation {
     // Make a new State
     // This function is only used by StatePrototype's compile method
     fn new(
         bound: Boundary,
+        grid: Grid,
         target_temp: f32,
         inject_rate: f32,
-        grid: Grid,
         dt: f32,
-        ext_a: Vec3,
+        ext_accel: Vec3,
         particles: Vec<Particle>,
     ) -> Self {
         Self {
             bound,
-            target_temp,
-            inject_rate,
             grid,
-            dt,
-            ext_a,
+            target_temp: TargetTemp(target_temp),
+            inject_rate: InjectRate(inject_rate),
+            dt: Dt(dt),
+            ext_accel: ExtAccel(ext_accel),
 
-            pot_energy: 0.0,
-            kin_energy: 0.0,
-            pressure: VecDeque::new(),
+            pot_energy: PotentialEnergy(0.0),
+            kin_energy: KineticEnergy(0.0),
+            pressure: Pressure(VecDeque::new()),
 
             particles,
         }
     }
+}
 
-    ///////////////////////////
-    // Getters
-    //
-    pub fn get_bound(&self) -> Boundary {
-        self.bound
-    }
-
-    // Execute one time step
-    // For now only uses leapfrog
-    pub fn step(&mut self) {
-        let dt = self.dt;
-
-        // step position
-        self.particles
-            .par_iter_mut()
-            .for_each(|particle| particle.step_pos(dt, 0.5));
-
-        // calculate accelerations and step velocity
-        let (accelerations, pot_enery, impulse) = self.calculate_particle_acceleration();
-        (&mut self.particles, accelerations)
-            .into_par_iter()
-            .for_each(|(particle, acc)| particle.step_vel(acc, dt, 1.0));
-
-        // step position again
-        self.particles
-            .par_iter_mut()
-            .for_each(|particle| particle.step_pos(dt, 0.5));
-    }
-
-    // Return a list of acceleration correspond to each particle
-    // Return the potential energy and pressure of the system
-    // TODO: Also return energy and pressure data
-    fn calculate_particle_acceleration(&self) -> (Vec<Vec3>, f32, f32) {
-        let particle_pos = self
-            .particles
-            .iter()
-            .map(|particle| particle.get_pos())
-            .collect();
-        let bound_force = self.bound.calculate_force(&particle_pos);
-        let (grid_force, potential_energies) = self.grid.calculate_force(&particle_pos);
-
-        let accelerations = (&self.particles, &bound_force, &grid_force)
-            .into_par_iter()
-            // @param bnd_f: force on particle by the bounding box
-            // @param grd_f: force on particle by other particles as calculated through the grid
-            .map(|(particle, &bnd_f, &grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_a)
-            .collect();
-
-        // calculate pressure and potential energy
-        // TODO: to be recorded
-        let potential_energy: f32 = potential_energies.iter().sum();
-        let impulse: f32 = bound_force
-            .iter()
-            .map(|bnd_f| bnd_f.length() * self.dt)
-            .sum();
-
-        (accelerations, potential_energy, impulse)
+impl Plugin for VDWSimulation {
+    fn build(&self, app: &mut AppBuilder) {
+        app.insert_resource(self.bound)
+           .insert_resource(self.grid)
+           .insert_resource(self.target_temp)
+           .insert_resource(self.inject_rate)
+           .insert_resource(self.dt)
+           .insert_resource(self.ext_accel)
+           .insert_resource(self.pot_energy)
+           .insert_resource(self.kin_energy)
+           .insert_resource(self.pressure.clone())
+           .insert_resource(self.particles.clone())
+           
+           .add_startup_system(sim_systems::setup_bounding_box.system())
+           .add_startup_system(sim_systems::setup_particles.system())
+           .add_startup_system(sim_systems::setup_camera.system())
+           
+           .add_system(sim_systems::advance_frame.system());
     }
 }
+
+

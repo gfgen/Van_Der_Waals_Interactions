@@ -1,4 +1,4 @@
-use crate::physics;
+use super::physics;
 use bevy::prelude::Vec3;
 use itertools::iproduct;
 use ndarray::Array3;

@@ -1,14 +1,14 @@
 use bevy::prelude::Vec3;
 use rand::Rng;
 use rand_distr::StandardNormal;
-use super::StatePrototype;
+use super::SimulationPrototype;
 use super::particle::Particle;
 use super::sim_space::Boundary;
 
 pub trait Initialize: Sized {
     fn get_bound(&self) -> Boundary;
     fn set_particles(self, particles: Vec<Particle>) -> Self;
-    fn initialize_spherical_cloud(mut self, n: usize, sigma: f32, temp: f32) -> Self {
+    fn initialize_spherical_cloud(self, n: usize, sigma: f32, temp: f32) -> Self {
         let bound = self.get_bound();
         let mut rng = rand::thread_rng();
         let mut particles = vec![];
@@ -40,7 +40,7 @@ pub trait Initialize: Sized {
     }
 }
 
-impl Initialize for StatePrototype {
+impl Initialize for SimulationPrototype {
     fn get_bound(&self) -> Boundary {
         self.bound
     }
