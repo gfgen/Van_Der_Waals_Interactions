@@ -15,11 +15,15 @@ use bevy::prelude::*;
 use bevy_flycam::NoCameraPlayerPlugin;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use state::state_generator::Initialize;
+use state::BoundRate;
 
-
-fn ui_example(egui_context: ResMut<EguiContext>) {
-    egui::Window::new("Hello").show(egui_context.ctx(), |ui| {
+fn bound_slider(
+    egui_context: ResMut<EguiContext>,
+    mut bound_rate: ResMut<BoundRate>
+) {
+    egui::Window::new("Bound X Slider").show(egui_context.ctx(), |ui| {
         ui.label("world");
+        ui.add(egui::Slider::new(&mut bound_rate.0, -1.0..=1.0).text("Tweak Boundary"));
     });
 }
 
@@ -28,7 +32,7 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_bound_x(10.0)
         .set_bound_y(10.0)
         .set_bound_z(10.0)
-        .initialize_spherical_cloud(1000, 1.0, 0.2)
+        .initialize_spherical_cloud(1000, 1.0, 0.3)
         .compile()?;
 
     App::build()
@@ -46,7 +50,7 @@ fn main() -> Result<(), state::error::InvalidParamError> {
             height: 800.,
             ..Default::default()
         })
-        .add_system(ui_example.system())
+        .add_system(bound_slider.system())
 
         .run();
 

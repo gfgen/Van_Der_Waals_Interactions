@@ -1,9 +1,9 @@
 pub mod error;
-pub mod particle;
 pub mod state_generator;
+mod particle;
 mod sim_systems;
 mod physics;
-mod sim_space;
+pub mod sim_space; // TODO: make private
 
 use bevy::prelude::*;
 use error::*;
@@ -174,6 +174,8 @@ impl SimulationPrototype {
 // State component wrappers
 
 #[derive(Clone, Copy)]
+pub struct BoundRate(pub f32);
+#[derive(Clone, Copy)]
 pub struct TargetTemp(f32);
 #[derive(Clone, Copy)]
 pub struct InjectRate(f32);
@@ -248,6 +250,7 @@ impl Plugin for VDWSimulation {
            .insert_resource(self.kin_energy)
            .insert_resource(self.pressure.clone())
            .insert_resource(self.particles.clone())
+           .insert_resource(BoundRate(0.0))
            
            .add_startup_system(sim_systems::setup_bounding_box.system())
            .add_startup_system(sim_systems::setup_particles.system())

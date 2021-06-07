@@ -219,6 +219,13 @@ impl Boundary {
     }
 
     ///////////////////////////////////////
+    // Interactive utilities
+    pub fn expand(&mut self, rate: f32, dt: f32) {
+        self.x = (self.x + rate * dt).max(Boundary::MIN_LEN);
+        self.y = (self.y + rate * dt).max(Boundary::MIN_LEN);
+        self.z = (self.z + rate * dt).max(Boundary::MIN_LEN);
+    }
+    ///////////////////////////////////////
     // Internal Utilities
     //
 

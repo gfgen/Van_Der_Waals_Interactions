@@ -6,6 +6,7 @@ use super::sim_space::*;
 use rayon::prelude::*;
 use crate::bevy_flycam::{FlyCam, InputState};
 use bevy::render::pipeline::PrimitiveTopology;
+use itertools::iproduct;
 
 // Marker Component:
 pub struct IsParticle;
@@ -17,18 +18,30 @@ pub struct IsBoundEdge;
 pub fn advance_frame(
     mut particles: ResMut<Vec<Particle>>,
     grid: Res<Grid>,
-    bound: Res<Boundary>,
+    mut bound: ResMut<Boundary>,
     dt: Res<Dt>,
     ext_accel: Res<ExtAccel>,
-    mut query: Query<&mut Transform, With<IsParticle>>,
+    mut particle_renders: Query<&mut Transform, With<IsParticle>>,
+
+    bound_rate: Res<BoundRate>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>
 ) {
     for _i in 0..20 {
         step(&mut particles, &grid, &bound, &dt, &ext_accel);
+
+        if bound_rate.0 != 0.0 {
+            bound.expand(bound_rate.0, dt.0)
+        }
     }
 
-    for (mut t, particle) in query.iter_mut().zip(particles.iter()) {
+    for (mut render, particle) in particle_renders.iter_mut().zip(particles.iter()) {
         let pos = particle.get_pos();
-        *t = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
+        *render = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
+    }
+
+    if bound_rate.0 != 0.0 {
+        update_bounding_box(&mut meshes, &bound, bounding_box_renders);
     }
 }
 
@@ -68,13 +81,17 @@ fn calculate_particle_acceleration(
     dt: &Dt,
     ext_accel: &ExtAccel
 ) -> (Vec<Vec3>, f32, f32) {
+    // Collect particle positions
     let particle_pos = particles
         .iter()
         .map(|particle| particle.get_pos())
         .collect();
+
+    // Calculate forces
     let bound_force = bound.calculate_force(&particle_pos);
     let (grid_force, potential_energies) = grid.calculate_force(&particle_pos);
 
+    // Sum up accelerations
     let accelerations = (particles, &bound_force, &grid_force)
         .into_par_iter()
         // @param bnd_f: force on particle by the bounding box
@@ -92,6 +109,37 @@ fn calculate_particle_acceleration(
     (accelerations, potential_energy, impulse)
 }
 
+// Draw a new bounding box according to bound
+fn update_bounding_box(
+    meshes: &mut Assets<Mesh>,
+    bound: &Boundary,
+    mut bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>
+) {
+    let binary = [0.0, 1.0];    // generate the four corners of each axis
+    let conditions = [0, 1, 2]; // stands for x, y, z axis
+    let multipliers = iproduct!(conditions.iter(), binary.iter(), binary.iter());
+
+    let line_x = meshes.add(create_line_mesh(bound.x, 0.0, 0.0));
+    let line_y = meshes.add(create_line_mesh(0.0, bound.y, 0.0));
+    let line_z = meshes.add(create_line_mesh(0.0, 0.0, bound.z));
+
+    for ((&cond, &mult1, &mult2), (mut trans, mut mesh)) in multipliers.zip(bounding_box_renders.iter_mut()) {
+        if cond == 0 {
+            *mesh = line_x.clone();
+            trans.translation = Vec3::new(0.0, bound.y * mult1, bound.z * mult2);
+        }
+        else if cond == 1 {
+            *mesh = line_y.clone();
+            trans.translation = Vec3::new(bound.x * mult1, 0.0, bound.z * mult2);
+
+        }
+        else if cond == 2 {
+            *mesh = line_z.clone();
+            trans.translation = Vec3::new(bound.x * mult1, bound.y * mult2, 0.0);
+
+        }
+    }
+}
 //////////////////////////////////////////
 pub fn setup_bounding_box(
     mut commands: Commands,
