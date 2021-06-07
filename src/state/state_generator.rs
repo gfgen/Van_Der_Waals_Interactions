@@ -1,40 +1,56 @@
 use bevy::prelude::Vec3;
 use rand::Rng;
 use rand_distr::StandardNormal;
+use super::StatePrototype;
 use super::particle::Particle;
 use super::sim_space::Boundary;
 
-// Generate various initial conditions
+pub trait Initialize: Sized {
+    fn get_bound(&self) -> Boundary;
+    fn set_particles(self, particles: Vec<Particle>) -> Self;
+    fn initialize_spherical_cloud(mut self, n: usize, sigma: f32, temp: f32) -> Self {
+        let bound = self.get_bound();
+        let mut rng = rand::thread_rng();
+        let mut particles = vec![];
 
-pub fn generate_spherical_cloud(bound: Boundary, n: usize, sigma: f32, temp: f32) -> Vec<Particle> {
-    let mut rng = rand::thread_rng();
-    let mut particles = vec![];
+        for _i in 0..n {
 
-    for _i in 0..n {
+            let mut pos = Vec3::new(rng.sample(StandardNormal), rng.sample(StandardNormal), rng.sample(StandardNormal));
+            pos = (pos * sigma) + bound.center(); // control spread and move to center of boundary
 
-        let mut pos = Vec3::new(rng.sample(StandardNormal), rng.sample(StandardNormal), rng.sample(StandardNormal));
-        pos = (pos * sigma) + bound.center(); // control spread and move to center of boundary
+            // Trim invalid positions
+            pos = pos.min(bound.hi_corner());
+            pos = pos.max(bound.lo_corner());
 
-        // Trim invalid positions
-        pos = pos.min(bound.hi_corner());
-        pos = pos.max(bound.lo_corner());
-
-        particles.push(
-            Particle::new()
-                .set_pos(
-                    pos.x,
-                    pos.y,
-                    pos.z
-                )
-                .set_vel(
-                    rng.sample::<f32, _>(StandardNormal) * temp,
-                    rng.sample::<f32, _>(StandardNormal) * temp,
-                    rng.sample::<f32, _>(StandardNormal) * temp
-                ),
-        );
+            particles.push(
+                Particle::new()
+                    .set_pos(
+                        pos.x,
+                        pos.y,
+                        pos.z
+                    )
+                    .set_vel(
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp
+                    ),
+            );
+        }
+        self.set_particles(prune(particles))
     }
-    prune(particles)
 }
+
+impl Initialize for StatePrototype {
+    fn get_bound(&self) -> Boundary {
+        self.bound
+    }
+
+    fn set_particles(mut self, particles: Vec<Particle>) -> Self {
+        self.particles = particles;
+        self
+    }
+}
+
 
 // Delete particles that are too close to each other
 fn prune(particles: Vec<Particle>) -> Vec<Particle> {

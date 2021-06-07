@@ -237,11 +237,8 @@ impl Boundary {
     //   would be: (-10, 0, 0)
     // to be used internally
     fn bound_check(&self, pos: Vec3) -> Vec3 {
-        let lower_bound = Vec3::new(0.0, 0.0, 0.0);
-        let upper_bound = Vec3::new(self.x, self.y, self.z);
-
-        let lower_bound_check = Vec3::max(lower_bound - pos, Vec3::ZERO); // zero out negative values
-        let upper_bound_check = Vec3::min(upper_bound - pos, Vec3::ZERO); // zero out positive values
+        let lower_bound_check = Vec3::max(self.lo_corner() - pos, Vec3::ZERO); // zero out negative values
+        let upper_bound_check = Vec3::min(self.hi_corner() - pos, Vec3::ZERO); // zero out positive values
 
         lower_bound_check + upper_bound_check
     }

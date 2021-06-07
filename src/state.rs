@@ -170,10 +170,10 @@ impl StatePrototype {
 
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
+// To be used as resources in bevy
 // Can only be created by compiling a StatePrototype
 //
 pub struct State {
-    // Resources
     bound: Boundary, // location of the 6 walls of the box
     target_temp: f32,      // external temperature
     inject_rate: f32,   // the rate of kinetic energy transfer from the outside
@@ -185,8 +185,6 @@ pub struct State {
     kin_energy: f32,
     pressure: VecDeque<f32>,
 
-
-    // Entities
     pub particles: Vec<Particle>,
 }
 

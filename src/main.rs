@@ -16,6 +16,7 @@ use bevy::prelude::*;
 use bevy_flycam::{FlyCam, NoCameraPlayerPlugin, InputState};
 use bevy::render::pipeline::PrimitiveTopology;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
+use state::state_generator::Initialize;
 
 fn create_line_mesh(x: f32, y: f32, z: f32) -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
@@ -140,9 +141,9 @@ fn main() -> Result<(), state::error::InvalidParamError> {
     let state = state::StatePrototype::new()
         .set_bound_x(10.0)
         .set_bound_y(10.0)
-        .set_bound_z(10.0);
-    let particles = state::state_generator::generate_spherical_cloud(state.get_bound(), 1000, 1.0, 0.0);
-    let state = state.set_particles(particles).compile()?;
+        .set_bound_z(10.0)
+        .initialize_spherical_cloud(1000, 1.0, 0.0)
+        .compile()?;
 
     App::build()
         .add_plugin(NoCameraPlayerPlugin)
