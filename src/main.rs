@@ -1,6 +1,5 @@
 #![allow(dead_code)] // TODO: get rid of this when finish developing
 extern crate bevy;
-extern crate bevy_flycam;
 extern crate clap;
 extern crate itertools;
 extern crate ndarray;
@@ -11,11 +10,12 @@ extern crate ringbuffer as rb;
 
 mod physics;
 mod state;
+mod bevy_flycam;
 
 use bevy::prelude::*;
-use bevy_flycam::{FlyCam, NoCameraPlayerPlugin};
+use bevy_flycam::{FlyCam, NoCameraPlayerPlugin, InputState};
 use bevy::render::pipeline::PrimitiveTopology;
-use bevy::render::mesh::Indices;
+use bevy_egui::{egui, EguiContext, EguiPlugin};
 
 fn create_line_mesh(x: f32, y: f32, z: f32) -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
@@ -29,10 +29,11 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut input_state: ResMut<InputState>,
     state: Res<state::State>,
 ) {
 
-    // Inserting spheres
+    // Insert particle renders
     let white_mat = materials.add(StandardMaterial {
         base_color: Color::WHITE,
         unlit: false,
@@ -54,7 +55,7 @@ fn setup(
         });
     }
 
-    // Drawing bounding Box
+    // Draw bounding Box
     let bound = state.get_bound();
     let multipliers = [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0)];
     let white_mat_unlit = materials.add(StandardMaterial {
@@ -91,15 +92,18 @@ fn setup(
         });
     }
 
-    // Camera
-    commands
-        .spawn_bundle(PerspectiveCameraBundle {
-            transform: Transform::from_xyz(5.0, 0.0, -5.0).looking_at(state.get_bound().center(), Vec3::ZERO),
+    // Initialize Camera
+    let camera_position = Vec3::new(5.0, 3.0, -5.0);
+    let camera_trans = Transform::from_translation(camera_position).looking_at(state.get_bound().center() - camera_position, Vec3::Y);
+    let (axis, angle) = camera_trans.rotation.to_axis_angle();
+    input_state.reset_axis_angle(axis, angle);
+    commands.spawn().insert_bundle(PerspectiveCameraBundle {
+            transform: camera_trans,
             ..Default::default()
         })
         .insert(FlyCam);
 
-    // Light
+    // Add Lights
     commands.spawn().insert_bundle(LightBundle {
         transform: Transform::from_translation(state.get_bound().lo_corner()),
         ..Default::default()
@@ -111,6 +115,7 @@ fn setup(
     });
 }
 
+// System that step the simulation
 fn update_state(
     mut state: ResMut<state::State>,
     mut query: Query<&mut Transform, With<Handle<Mesh>>>,
@@ -125,6 +130,12 @@ fn update_state(
     }
 }
 
+fn ui_example(egui_context: ResMut<EguiContext>) {
+    egui::Window::new("Hello").show(egui_context.ctx(), |ui| {
+        ui.label("world");
+    });
+}
+
 fn main() -> Result<(), state::error::InvalidParamError> {
     let state = state::StatePrototype::new()
         .set_bound_x(10.0)
@@ -134,9 +145,12 @@ fn main() -> Result<(), state::error::InvalidParamError> {
     let state = state.set_particles(particles).compile()?;
 
     App::build()
-        .add_startup_system(setup.system())
+        .add_plugin(NoCameraPlayerPlugin)
+        .add_plugins(DefaultPlugins)
+        .add_plugin(EguiPlugin)
+
         // Set antialiasing to use 4 samples
-        .insert_resource(Msaa { samples: 2 })
+        // .insert_resource(Msaa { samples: 2 })
         // Set WindowDescriptor Resource to change title and size
         .insert_resource(WindowDescriptor {
             title: "Van Der Waals Interaction".to_string(),
@@ -145,9 +159,12 @@ fn main() -> Result<(), state::error::InvalidParamError> {
             ..Default::default()
         })
         .insert_resource(state)
+
+        .add_startup_system(setup.system())
+
         .add_system(update_state.system())
-        .add_plugin(NoCameraPlayerPlugin)
-        .add_plugins(DefaultPlugins)
+        .add_system(ui_example.system())
+
         .run();
 
     Ok(())

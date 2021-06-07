@@ -236,7 +236,7 @@ impl State {
             .for_each(|particle| particle.step_pos(dt, 0.5));
 
         // calculate accelerations and step velocity
-        let accelerations = self.calculate_particle_acceleration();
+        let (accelerations, pot_enery, impulse) = self.calculate_particle_acceleration();
         (&mut self.particles, accelerations)
             .into_par_iter()
             .for_each(|(particle, acc)| particle.step_vel(acc, dt, 1.0));
@@ -250,7 +250,7 @@ impl State {
     // Return a list of acceleration correspond to each particle
     // Return the potential energy and pressure of the system
     // TODO: Also return energy and pressure data
-    fn calculate_particle_acceleration(&self) -> Vec<Vec3> {
+    fn calculate_particle_acceleration(&self) -> (Vec<Vec3>, f32, f32) {
         let particle_pos = self
             .particles
             .iter()
@@ -274,6 +274,6 @@ impl State {
             .map(|bnd_f| bnd_f.length() * self.dt)
             .sum();
 
-        accelerations
+        (accelerations, potential_energy, impulse)
     }
 }
