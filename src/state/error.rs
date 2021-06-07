@@ -4,8 +4,8 @@ use std::{error::Error, fmt};
 #[derive(Debug)]
 pub enum ErrorKind {
     Bound,
-    ExtT,
-    ExtCond,
+    TargTemp,
+    InjectRate,
     UnitSize,
     Reach,
     Dt,

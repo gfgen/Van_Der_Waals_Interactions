@@ -1,5 +1,6 @@
 pub mod error;
 pub mod particle;
+pub mod state_generator;
 mod sim_space;
 
 use bevy::prelude::Vec3;
@@ -7,6 +8,7 @@ use error::*;
 use particle::*;
 use rayon::prelude::*;
 use sim_space::*;
+use std::collections::VecDeque;
 
 /////////////////////////////////////////////////
 // Contains all simulation initial conditions
@@ -39,6 +41,13 @@ impl StatePrototype {
             ext_a: Vec3::new(0.0, 0.0, 0.0),
             particles: Vec::new(),
         }
+    }
+
+    ///////////////////////////
+    // Getters
+    //
+    pub fn get_bound(&self) -> Boundary {
+        self.bound
     }
 
     /////////////////////////////
@@ -118,10 +127,10 @@ impl StatePrototype {
             errors.push(ErrorKind::Bound);
         }
         if self.target_temp < 0.0 {
-            errors.push(ErrorKind::ExtT);
+            errors.push(ErrorKind::TargTemp);
         }
         if self.inject_rate < 0.0 {
-            errors.push(ErrorKind::ExtCond);
+            errors.push(ErrorKind::InjectRate);
         }
         if self.grid_unit_size < 0.0 {
             errors.push(ErrorKind::UnitSize);
@@ -172,6 +181,11 @@ pub struct State {
     dt: f32,
     ext_a: Vec3, // external acceleration applied to all particles
 
+    pot_energy: f32,
+    kin_energy: f32,
+    pressure: VecDeque<f32>,
+
+
     // Entities
     pub particles: Vec<Particle>,
 }
@@ -196,10 +210,20 @@ impl State {
             dt,
             ext_a,
 
+            pot_energy: 0.0,
+            kin_energy: 0.0,
+            pressure: VecDeque::new(),
+
             particles,
         }
     }
 
+    ///////////////////////////
+    // Getters
+    //
+    pub fn get_bound(&self) -> Boundary {
+        self.bound
+    }
 
     // Execute one time step
     // For now only uses leapfrog

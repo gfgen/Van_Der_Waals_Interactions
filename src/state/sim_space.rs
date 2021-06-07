@@ -184,6 +184,21 @@ impl Boundary {
         self.x * self.y * self.z
     }
 
+    // Coordinates of the corner with higher values
+    pub fn hi_corner(&self) -> Vec3 {
+        Vec3::new(self.x, self.y, self.z)
+    }
+
+    // Coordinates of the corner with lower values
+    pub fn lo_corner(&self) -> Vec3 {
+        Vec3::ZERO
+    }
+
+    // Coordinates of center of box
+    pub fn center(&self) -> Vec3 {
+        (self.hi_corner() + self.lo_corner()) / 2.0
+    }
+
     // Check for a valid box size
     pub fn is_valid(&self) -> bool {
         self.x >= Self::MIN_LEN && self.y >= Self::MIN_LEN && self.z >= Self::MIN_LEN
