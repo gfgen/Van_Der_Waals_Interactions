@@ -1,9 +1,10 @@
 pub mod error;
 pub mod state_generator;
 mod particle;
-mod sim_systems;
 mod physics;
-pub mod sim_space; // TODO: make private
+mod sim_space; 
+mod ui_systems;
+mod sim_systems;
 
 use bevy::prelude::*;
 use error::*;
@@ -17,8 +18,6 @@ use std::collections::VecDeque;
 //
 pub struct SimulationPrototype {
     bound: Boundary, // location of the 6 walls of the box
-    target_temp: f32,      // external temperature
-    inject_rate: f32,   // the rate of kinetic energy transfer from the outside
 
     grid_unit_size: f32, // how big a grid point is
     grid_reach: usize,   // particle interaction cutoff
@@ -33,8 +32,6 @@ impl SimulationPrototype {
     pub fn new() -> Self {
         Self {
             bound: Boundary::new(),
-            target_temp: 0.0,
-            inject_rate: 0.0,
 
             grid_unit_size: 1.0,
             grid_reach: 1,
@@ -72,12 +69,6 @@ impl SimulationPrototype {
     }
     pub fn set_bound_z(mut self, val: f32) -> Self {
         self.bound.z = val;
-        self
-    }
-
-    // inject_rate
-    pub fn set_inject_rate(mut self, inject_rate: f32) -> Self {
-        self.inject_rate = inject_rate;
         self
     }
 
@@ -122,12 +113,6 @@ impl SimulationPrototype {
         if !self.bound.is_valid() {
             errors.push(ErrorKind::Bound);
         }
-        if self.target_temp < 0.0 {
-            errors.push(ErrorKind::TargTemp);
-        }
-        if self.inject_rate < 0.0 {
-            errors.push(ErrorKind::InjectRate);
-        }
         if self.grid_unit_size < 0.0 {
             errors.push(ErrorKind::UnitSize);
         }
@@ -154,8 +139,6 @@ impl SimulationPrototype {
             Ok(VDWSimulation::new(
                 self.bound,
                 Grid::new(self.grid_unit_size, self.grid_reach),
-                self.target_temp,
-                self.inject_rate,
                 self.dt,
                 self.ext_a,
                 self.particles.clone(),
@@ -182,8 +165,8 @@ pub struct ExtAccel(pub Vec3);
 pub struct PotentialEnergy(pub f32);
 #[derive(Clone, Copy)]
 pub struct KineticEnergy(pub f32);
-#[derive(Clone)]
 pub struct Pressure(pub VecDeque<f32>);
+pub struct EnergyHistory(pub VecDeque<f32>);
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
 // Is a bevy Plugin
@@ -191,15 +174,9 @@ pub struct Pressure(pub VecDeque<f32>);
 //
 pub struct VDWSimulation {
     bound: Boundary, // location of the 6 walls of the box
-    target_temp: TargetTemp,      // external temperature
-    inject_rate: InjectRate,   // the rate of kinetic energy transfer from the outside
     grid: Grid,
     dt: Dt,
     ext_accel: ExtAccel, // external acceleration applied to all particles
-
-    pot_energy: PotentialEnergy,
-    kin_energy: KineticEnergy,
-    pressure: Pressure,
 
     pub particles: Vec<Particle>,
 }
@@ -210,8 +187,6 @@ impl VDWSimulation {
     fn new(
         bound: Boundary,
         grid: Grid,
-        target_temp: f32,
-        inject_rate: f32,
         dt: f32,
         ext_accel: Vec3,
         particles: Vec<Particle>,
@@ -219,14 +194,8 @@ impl VDWSimulation {
         Self {
             bound,
             grid,
-            target_temp: TargetTemp(target_temp),
-            inject_rate: InjectRate(inject_rate),
             dt: Dt(dt),
             ext_accel: ExtAccel(ext_accel),
-
-            pot_energy: PotentialEnergy(0.0),
-            kin_energy: KineticEnergy(0.0),
-            pressure: Pressure(VecDeque::new()),
 
             particles,
         }
@@ -237,20 +206,24 @@ impl Plugin for VDWSimulation {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(self.bound)
            .insert_resource(self.grid)
-           .insert_resource(self.target_temp)
-           .insert_resource(self.inject_rate)
            .insert_resource(self.dt)
            .insert_resource(self.ext_accel)
-           .insert_resource(self.pot_energy)
-           .insert_resource(self.kin_energy)
-           .insert_resource(self.pressure.clone())
            .insert_resource(self.particles.clone())
+
+           .insert_resource(PotentialEnergy(0.0))
+           .insert_resource(KineticEnergy(0.0))
+           .insert_resource(Pressure(VecDeque::new()))
+           .insert_resource(TargetTemp(0.0))
+           .insert_resource(InjectRate(0.0))
            .insert_resource(BoundRate(0.0))
+           .insert_resource(EnergyHistory(VecDeque::new()))
            
            .add_startup_system(sim_systems::setup_bounding_box.system())
            .add_startup_system(sim_systems::setup_particles.system())
            .add_startup_system(sim_systems::setup_camera.system())
            
+           .add_system(ui_systems::param_sliders.system())
+           .add_system(ui_systems::simulation_info.system())
            .add_system(sim_systems::advance_simulation.system().label("simulation"))
            .add_system(sim_systems::update_particles_renders.system().after("simulation"))
            .add_system(sim_systems::update_bounding_box_renders.system().after("simulation"));

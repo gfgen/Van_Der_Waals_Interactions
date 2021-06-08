@@ -22,14 +22,33 @@ pub fn advance_simulation(
     dt: Res<Dt>,
     ext_accel: Res<ExtAccel>,
     bound_rate: Res<BoundRate>,
+
+    targ_temp: Res<TargetTemp>,
+    inject_rate: Res<InjectRate>,
+
+    mut potential_energy: ResMut<PotentialEnergy>,
+    mut kinetic_energy: ResMut<KineticEnergy>
 ) {
-    for _i in 0..20 {
-        step(&mut particles, &grid, &bound, &dt, &ext_accel);
+    for _i in 0..19 {
+        step(&mut particles, &grid, &bound, &dt, &ext_accel, &targ_temp, &inject_rate);
 
         if bound_rate.0 != 0.0 {
             bound.expand(bound_rate.0, dt.0)
         }
     }
+
+    let (pot_energy, impulse) = step(&mut particles, &grid, &bound, &dt, &ext_accel, &targ_temp, &inject_rate);
+
+    if bound_rate.0 != 0.0 {
+        bound.expand(bound_rate.0, dt.0)
+    }
+
+    // Record energy
+    potential_energy.0 = pot_energy;
+    kinetic_energy.0 = particles
+        .iter_mut()
+        .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
+        .sum();
 }
 
 // Execute one time step
@@ -40,8 +59,11 @@ fn step(
     grid: &Grid,
     bound: &Boundary,
     dt: &Dt,
-    ext_accel: &ExtAccel
-) {
+    ext_accel: &ExtAccel,
+
+    targ_temp: &TargetTemp,
+    inject_rate: &InjectRate
+) -> (f32, f32) {
     // step position
     particles
         .par_iter_mut()
@@ -52,6 +74,13 @@ fn step(
     (&mut (*particles), accelerations).into_par_iter()
         .for_each(|(particle, acc)| particle.step_vel(acc, dt.0, 1.0));
 
+    // inject/drain heat into/from system
+    particles
+        .par_iter_mut()
+        .for_each(|particle| {
+            let amount = (targ_temp.0 - particle.get_vel().length()) * inject_rate.0;
+            particle.heat(dt.0, amount);
+        });
     // save number of neighbors
     (&mut (*particles), neighbors).into_par_iter()
         .for_each(|(particle, nei)| particle.neighbors = nei);
@@ -60,6 +89,8 @@ fn step(
     particles
         .par_iter_mut()
         .for_each(|particle| particle.step_pos(dt.0, 0.5));
+
+    (pot_enery, impulse)
 }
 
 // Return a list of acceleration correspond to each particle

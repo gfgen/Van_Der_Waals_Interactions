@@ -69,4 +69,8 @@ impl Particle {
     pub fn step_vel(&mut self, acc: Vec3, dt: f32, coeff: f32) {
         self.vel += coeff * dt * acc;
     }
+
+    pub fn heat(&mut self, dt: f32, amount: f32) {
+        self.vel += self.vel * amount * dt;
+    }
 }

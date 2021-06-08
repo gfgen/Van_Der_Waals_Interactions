@@ -13,31 +13,19 @@ mod bevy_flycam;
 
 use bevy::prelude::*;
 use bevy_flycam::NoCameraPlayerPlugin;
-use bevy_egui::{egui, EguiContext, EguiPlugin};
+use bevy_egui::EguiPlugin;
 use state::state_generator::Initialize;
-use state::*;
-
-fn param_sliders(
-    egui_context: ResMut<EguiContext>,
-    mut bound_rate: ResMut<BoundRate>,
-    mut targ_temp: ResMut<TargetTemp>,
-    mut inject_rate: ResMut<InjectRate>,
-) {
-    egui::Window::new("Sliders").show(egui_context.ctx(), |ui| {
-        ui.add(egui::Slider::new(&mut bound_rate.0, -0.5..=0.5).text("Boundary Slider"));
-        ui.add(egui::Slider::new(&mut targ_temp.0, 0.0..=3.0).text("Target Temp Slider"));
-        ui.add(egui::Slider::new(&mut inject_rate.0, 0.0..=0.1).text("Inject Rate Slider"));
-
-    });
-}
 
 fn main() -> Result<(), state::error::InvalidParamError> {
     let vdw_simulation = state::SimulationPrototype::new()
         .set_bound_x(10.0)
         .set_bound_y(10.0)
         .set_bound_z(10.0)
-        .initialize_spherical_cloud(1000, 1.0, 0.3)
+        .set_dt(0.0005)
+        .initialize_spherical_cloud( 1000, 1.0, 0.8)
         .compile()?;
+    
+    println!("n = {}", vdw_simulation.particles.len());
 
     App::build()
         .add_plugins(DefaultPlugins)
@@ -54,7 +42,6 @@ fn main() -> Result<(), state::error::InvalidParamError> {
             height: 800.,
             ..Default::default()
         })
-        .add_system(param_sliders.system())
 
         .run();
 
