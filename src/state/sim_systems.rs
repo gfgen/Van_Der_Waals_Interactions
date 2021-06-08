@@ -15,17 +15,13 @@ pub struct IsBoundEdge;
 // System that advance one animation frame
 // Multiple simulation steps are executed in one animation frame
 // TODO: implement steps per frame
-pub fn advance_frame(
+pub fn advance_simulation(
     mut particles: ResMut<Vec<Particle>>,
     grid: Res<Grid>,
     mut bound: ResMut<Boundary>,
     dt: Res<Dt>,
     ext_accel: Res<ExtAccel>,
-    mut particle_renders: Query<&mut Transform, With<IsParticle>>,
-
     bound_rate: Res<BoundRate>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>
 ) {
     for _i in 0..20 {
         step(&mut particles, &grid, &bound, &dt, &ext_accel);
@@ -33,15 +29,6 @@ pub fn advance_frame(
         if bound_rate.0 != 0.0 {
             bound.expand(bound_rate.0, dt.0)
         }
-    }
-
-    for (mut render, particle) in particle_renders.iter_mut().zip(particles.iter()) {
-        let pos = particle.get_pos();
-        *render = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
-    }
-
-    if bound_rate.0 != 0.0 {
-        update_bounding_box(&mut meshes, &bound, bounding_box_renders);
     }
 }
 
@@ -61,9 +48,13 @@ fn step(
         .for_each(|particle| particle.step_pos(dt.0, 0.5));
 
     // calculate accelerations and step velocity
-    let (accelerations, pot_enery, impulse) = calculate_particle_acceleration(particles, grid, bound, dt, ext_accel);
+    let (accelerations, neighbors, pot_enery, impulse) = calculate_particle_acceleration(particles, grid, bound, dt, ext_accel);
     (&mut (*particles), accelerations).into_par_iter()
         .for_each(|(particle, acc)| particle.step_vel(acc, dt.0, 1.0));
+
+    // save number of neighbors
+    (&mut (*particles), neighbors).into_par_iter()
+        .for_each(|(particle, nei)| particle.neighbors = nei);
 
     // step position again
     particles
@@ -75,12 +66,12 @@ fn step(
 // Return the potential energy and pressure of the system
 // Helper function
 fn calculate_particle_acceleration(
-    particles: &mut Vec<Particle>,
+    particles: &Vec<Particle>,
     grid: &Grid,
     bound: &Boundary,
     dt: &Dt,
     ext_accel: &ExtAccel
-) -> (Vec<Vec3>, f32, f32) {
+) -> (Vec<Vec3>, Vec<usize>, f32, f32) {
     // Collect particle positions
     let particle_pos = particles
         .iter()
@@ -89,7 +80,7 @@ fn calculate_particle_acceleration(
 
     // Calculate forces
     let bound_force = bound.calculate_force(&particle_pos);
-    let (grid_force, potential_energies) = grid.calculate_force(&particle_pos);
+    let (grid_force, potential_energies, neighbors) = grid.calculate_force(&particle_pos);
 
     // Sum up accelerations
     let accelerations = (particles, &bound_force, &grid_force)
@@ -106,15 +97,35 @@ fn calculate_particle_acceleration(
         .map(|bnd_f| bnd_f.length() * dt.0)
         .sum();
 
-    (accelerations, potential_energy, impulse)
+    (accelerations, neighbors, potential_energy, impulse)
 }
 
-// Draw a new bounding box according to bound
-fn update_bounding_box(
-    meshes: &mut Assets<Mesh>,
-    bound: &Boundary,
+// Update the rendering of particles
+pub fn update_particles_renders(
+    particles: Res<Vec<Particle>>,
+    particle_mats: Res<ParticleMats>,
+    mut particle_renders: Query<(&mut Transform, &mut Handle<StandardMaterial>), With<IsParticle>>
+) {
+    for ((mut trans, mut mat), particle) in particle_renders.iter_mut().zip(particles.iter()) {
+        let pos = particle.get_pos();
+        *trans = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
+
+        if particle.neighbors > 3 {
+            *mat = particle_mats.blue.clone();
+        } else {
+            *mat = particle_mats.white.clone();
+        }
+    }
+}
+
+// Update the rendering of bounding box
+pub fn update_bounding_box_renders(
+    mut meshes: ResMut<Assets<Mesh>>,
+    bound: Res<Boundary>,
     mut bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>
 ) {
+    if !bound.is_changed() { return; }
+
     let binary = [0.0, 1.0];    // generate the four corners of each axis
     let conditions = [0, 1, 2]; // stands for x, y, z axis
     let multipliers = iproduct!(conditions.iter(), binary.iter(), binary.iter());
@@ -124,15 +135,18 @@ fn update_bounding_box(
     let line_z = meshes.add(create_line_mesh(0.0, 0.0, bound.z));
 
     for ((&cond, &mult1, &mult2), (mut trans, mut mesh)) in multipliers.zip(bounding_box_renders.iter_mut()) {
+        // edges along the x axis
         if cond == 0 {
             *mesh = line_x.clone();
             trans.translation = Vec3::new(0.0, bound.y * mult1, bound.z * mult2);
         }
+        // edges along the y axis
         else if cond == 1 {
             *mesh = line_y.clone();
             trans.translation = Vec3::new(bound.x * mult1, 0.0, bound.z * mult2);
 
         }
+        // edges along the z axis
         else if cond == 2 {
             *mesh = line_z.clone();
             trans.translation = Vec3::new(bound.x * mult1, bound.y * mult2, 0.0);
@@ -197,6 +211,11 @@ fn create_line_mesh(x: f32, y: f32, z: f32) -> Mesh {
 }
 
 ////////////////////////////////////////////
+pub struct ParticleMats {
+    white: Handle<StandardMaterial>,
+    blue: Handle<StandardMaterial>
+}
+
 pub fn setup_particles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -207,6 +226,12 @@ pub fn setup_particles(
     // Insert particle renders
     let white_mat = materials.add(StandardMaterial {
         base_color: Color::WHITE,
+        unlit: false,
+        ..Default::default()
+    });
+
+    let blue_mat = materials.add(StandardMaterial {
+        base_color: Color::CYAN,
         unlit: false,
         ..Default::default()
     });
@@ -226,6 +251,11 @@ pub fn setup_particles(
         })
         .insert(IsParticle);
     }
+
+    commands.insert_resource(ParticleMats {
+        white: white_mat,
+        blue: blue_mat
+    })
 }
 
 ////////////////////////////////////////////////////////////

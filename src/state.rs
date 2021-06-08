@@ -75,12 +75,7 @@ impl SimulationPrototype {
         self
     }
 
-    // target_temp and inject_rate
-    pub fn set_target_temp(mut self, target_temp: f32) -> Self {
-        self.target_temp = target_temp;
-        self
-    }
-
+    // inject_rate
     pub fn set_inject_rate(mut self, inject_rate: f32) -> Self {
         self.inject_rate = inject_rate;
         self
@@ -176,19 +171,19 @@ impl SimulationPrototype {
 #[derive(Clone, Copy)]
 pub struct BoundRate(pub f32);
 #[derive(Clone, Copy)]
-pub struct TargetTemp(f32);
+pub struct TargetTemp(pub f32);
 #[derive(Clone, Copy)]
-pub struct InjectRate(f32);
+pub struct InjectRate(pub f32);
 #[derive(Clone, Copy)]
-pub struct Dt(f32);
+pub struct Dt(pub f32);
 #[derive(Clone, Copy)]
-pub struct ExtAccel(Vec3);
+pub struct ExtAccel(pub Vec3);
 #[derive(Clone, Copy)]
-pub struct PotentialEnergy(f32);
+pub struct PotentialEnergy(pub f32);
 #[derive(Clone, Copy)]
-pub struct KineticEnergy(f32);
+pub struct KineticEnergy(pub f32);
 #[derive(Clone)]
-pub struct Pressure(VecDeque<f32>);
+pub struct Pressure(pub VecDeque<f32>);
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
 // Is a bevy Plugin
@@ -256,7 +251,9 @@ impl Plugin for VDWSimulation {
            .add_startup_system(sim_systems::setup_particles.system())
            .add_startup_system(sim_systems::setup_camera.system())
            
-           .add_system(sim_systems::advance_frame.system());
+           .add_system(sim_systems::advance_simulation.system().label("simulation"))
+           .add_system(sim_systems::update_particles_renders.system().after("simulation"))
+           .add_system(sim_systems::update_bounding_box_renders.system().after("simulation"));
     }
 }
 

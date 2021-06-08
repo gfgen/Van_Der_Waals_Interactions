@@ -4,12 +4,12 @@ use bevy::prelude::Vec3;
 const R0: f32 = 0.15;
 
 // calculate force and potential on position 1
-pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f32) {
+pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f32, usize) {
     let r = pos_targ - pos_other;
     let r_norm_sqr = r.length_squared();
 
     if r_norm_sqr > range.powi(2) {
-        return (Vec3::new(0.0, 0.0, 0.0), 0.0);
+        return (Vec3::new(0.0, 0.0, 0.0), 0.0, 0);
     }
 
     // Calculate force
@@ -32,5 +32,9 @@ pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f3
     let potential = 4.0 * R0 * (1.0 / r_unit12) - (1.0 / r_unit6);
     let potential_adjusted = (potential - free_potential) / 2.0;
 
-    (force, potential_adjusted)
+    // determine neighbor
+    let neighbor_threshold = 4.0 * R0.powi(2);
+    let neighbor = if r_norm_sqr < neighbor_threshold { 1 } else { 0 };
+
+    (force, potential_adjusted, neighbor)
 }

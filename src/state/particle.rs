@@ -3,6 +3,7 @@ use bevy::prelude::Vec3;
 // simulated particle
 #[derive(Clone)]
 pub struct Particle {
+    pub neighbors: usize,
     mass: f32,
     pos: Vec3,
     vel: Vec3,
@@ -13,6 +14,7 @@ impl Particle {
     // Parameters can be set using the corresponding builders
     pub fn new() -> Self {
         Self {
+            neighbors: 0,
             mass: 1.0,
             pos: Vec3::new(0.0, 0.0, 0.0),
             vel: Vec3::new(0.0, 0.0, 0.0),

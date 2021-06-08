@@ -22,19 +22,23 @@ impl Grid {
     }
 
     // Calculate the interactions between particles using the grid approximation
-    pub fn calculate_force(&self, particles: &Vec<Vec3>) -> (Vec<Vec3>, Vec<f32>) {
+    // Return (accelerations, potential energies, # of neighbors)
+    pub fn calculate_force(&self, particles: &Vec<Vec3>) -> (Vec<Vec3>, Vec<f32>, Vec<usize>) {
         let (grid, locations) = self.make_grid(particles);
-        locations
+        let (accelerations, (potential_energies, neighbors))= locations
             .par_iter()
             .enumerate() // locations and particles has matching indices
             .map(|(particle_id, &location)| {
                 self.calculate_force_single(particle_id, location, particles, &grid)
             })
-            .unzip()
+            .unzip();
+
+        (accelerations, potential_energies, neighbors)
     }
 
     // Calculate the total force acted on a particle by all nearby particles
     // Calculate the potential energy of the system
+    // Awkward return format so that it can be used by unzip
     // To be used internally
     fn calculate_force_single(
         &self,
@@ -42,7 +46,7 @@ impl Grid {
         loc: (usize, usize, usize), // target particle grid location
         particles: &Vec<Vec3>,      // Set of all particle positions
         grid: &Array3<Vec<usize>>,  // division grid
-    ) -> (Vec3, f32) {
+    ) -> (Vec3, (f32, usize)) {
         let relevant_grid_points = self.generate_neighbor_grid_loc(loc, grid);
 
         let relevant_particles = relevant_grid_points
@@ -53,19 +57,21 @@ impl Grid {
 
         let mut total_force = Vec3::ZERO;
         let mut total_potential = 0.0;
+        let mut total_neighbor = 0;
         let target_particle = particles[tpid];
         // iterate through relevant particles, sum up forces and potentials
         for other_particle in relevant_particles {
             let range = self.unit_size * self.reach as f32;
 
-            let (force, potential) =
+            let (force, potential, neighbor) =
                 physics::vdw_interaction(target_particle, other_particle, range);
 
             total_force += force;
             total_potential += potential;
+            total_neighbor += neighbor;
         }
 
-        (total_force, total_potential)
+        (total_force, (total_potential, total_neighbor))
     }
 
     // Generate indices that satisfy:
