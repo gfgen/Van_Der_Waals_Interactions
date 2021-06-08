@@ -161,12 +161,40 @@ pub struct InjectRate(pub f32);
 pub struct Dt(pub f32);
 #[derive(Clone, Copy)]
 pub struct ExtAccel(pub Vec3);
-#[derive(Clone, Copy)]
-pub struct PotentialEnergy(pub f32);
-#[derive(Clone, Copy)]
-pub struct KineticEnergy(pub f32);
-pub struct Pressure(pub VecDeque<f32>);
-pub struct EnergyHistory(pub VecDeque<f32>);
+#[derive(Clone, Copy, Default)]
+pub struct Energy {
+    pub kinetic: f32,
+    pub potential: f32
+}
+
+// This is a ring buffer
+pub struct Pressure {
+    data: VecDeque<f32>,
+}
+impl Pressure {
+    // Create ring buffer with capacity, all entries initialized to zero
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            data: VecDeque::from(vec![0.0; capacity]),
+        }
+    }
+
+    pub fn push_sample(&mut self, value: f32) {
+        self.data.pop_front();
+        self.data.push_back(value);
+    }
+
+    pub fn get_capacity(&self) -> usize {
+        self.data.len()
+    }
+
+    // Calulate the pressure based on sampled values
+    pub fn get_value(&self, surface_area: f32) -> f32 {
+        self.data.iter().sum::<f32>() / self.data.len() as f32 / surface_area
+    }
+}
+
+
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
 // Is a bevy Plugin
@@ -182,6 +210,8 @@ pub struct VDWSimulation {
 }
 
 impl VDWSimulation {
+    const PRESSURE_SAMPLING_PERIOD: f32 = 1.0; // Average impulses over this period of time
+
     // Make a new State
     // This function is only used by StatePrototype's compile method
     fn new(
@@ -210,23 +240,21 @@ impl Plugin for VDWSimulation {
            .insert_resource(self.ext_accel)
            .insert_resource(self.particles.clone())
 
-           .insert_resource(PotentialEnergy(0.0))
-           .insert_resource(KineticEnergy(0.0))
-           .insert_resource(Pressure(VecDeque::new()))
+           .insert_resource(Pressure::with_capacity((Self::PRESSURE_SAMPLING_PERIOD / self.dt.0) as usize))
            .insert_resource(TargetTemp(0.0))
            .insert_resource(InjectRate(0.0))
            .insert_resource(BoundRate(0.0))
-           .insert_resource(EnergyHistory(VecDeque::new()))
+           .insert_resource(Energy::default()) // initialize for ui system
            
            .add_startup_system(sim_systems::setup_bounding_box.system())
            .add_startup_system(sim_systems::setup_particles.system())
            .add_startup_system(sim_systems::setup_camera.system())
            
-           .add_system(ui_systems::param_sliders.system())
-           .add_system(ui_systems::simulation_info.system())
            .add_system(sim_systems::advance_simulation.system().label("simulation"))
            .add_system(sim_systems::update_particles_renders.system().after("simulation"))
-           .add_system(sim_systems::update_bounding_box_renders.system().after("simulation"));
+           .add_system(sim_systems::update_bounding_box_renders.system().after("simulation"))
+           .add_system(ui_systems::param_sliders.system())
+           .add_system(ui_systems::simulation_info.system());
     }
 }
 

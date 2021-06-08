@@ -21,7 +21,7 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_bound_x(10.0)
         .set_bound_y(10.0)
         .set_bound_z(10.0)
-        .set_dt(0.0005)
+        .set_dt(0.001)
         .initialize_spherical_cloud( 1000, 1.0, 0.8)
         .compile()?;
     
