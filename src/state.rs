@@ -1,6 +1,7 @@
 pub mod error;
 mod particle;
 mod physics;
+mod render_systems;
 mod sim_space;
 mod sim_systems;
 pub mod state_generator;
@@ -227,7 +228,7 @@ pub struct VDWSimulation {
 }
 
 impl VDWSimulation {
-    const PRESSURE_SAMPLING_PERIOD: f32 = 3.0; // Average impulses over this period of time
+    const PRESSURE_SAMPLING_PERIOD: f32 = 10.0; // Average impulses over this period of time
 
     // Make a new State
     // This function is only used by StatePrototype's compile method
@@ -268,17 +269,17 @@ impl Plugin for VDWSimulation {
             .insert_resource(InjectRate(0.0))
             .insert_resource(BoundRate(0.0))
             .insert_resource(Energy::default()) // initialize for ui system
-            .add_startup_system(sim_systems::setup_bounding_box.system())
-            .add_startup_system(sim_systems::setup_particles.system())
-            .add_startup_system(sim_systems::setup_camera.system())
+            .add_startup_system(render_systems::setup_bounding_box.system())
+            .add_startup_system(render_systems::setup_particles.system())
+            .add_startup_system(render_systems::setup_camera.system())
             .add_system(sim_systems::advance_simulation.system().label("simulation"))
             .add_system(
-                sim_systems::update_particles_renders
+                render_systems::update_particles_renders
                     .system()
                     .after("simulation"),
             )
             .add_system(
-                sim_systems::update_bounding_box_renders
+                render_systems::update_bounding_box_renders
                     .system()
                     .after("simulation"),
             )

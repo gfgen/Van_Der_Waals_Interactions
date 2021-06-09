@@ -3,7 +3,7 @@
 use super::*;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext};
-use egui::plot::{Curve, Plot, Value};
+// use egui::plot::{Curve, Plot, Value};
 
 pub fn param_sliders(
     egui_context: ResMut<EguiContext>,
