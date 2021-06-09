@@ -17,9 +17,10 @@ pub struct IsBoundEdge;
 // TODO: implement steps per frame
 pub fn advance_simulation(
     mut particles: ResMut<Vec<Particle>>,
-    grid: Res<Grid>,
     mut bound: ResMut<Boundary>,
+    grid: Res<Grid>,
     dt: Res<Dt>,
+    steps_per_frame: Res<StepsPerFrame>,
     ext_accel: Res<ExtAccel>,
     bound_rate: Res<BoundRate>,
 
@@ -33,10 +34,12 @@ pub fn advance_simulation(
     let current_temp = energy.kinetic / particles.len() as f32;
     let heat_injection = (targ_temp.0 - current_temp) * inject_rate.0;
 
+    let mut total_impulse = 0.0;
+
     // Step simulation
-    for _i in 0..19 {
+    for _i in 0..(steps_per_frame.0 - 1) {
         let (_, impulse) = step(&mut particles, &grid, &bound, &dt, &ext_accel, heat_injection);
-        pressure.push_sample(impulse); // record pressure
+        total_impulse += impulse;
 
         if bound_rate.0 != 0.0 {
             bound.expand(bound_rate.0, dt.0)
@@ -44,7 +47,7 @@ pub fn advance_simulation(
     }
 
     let (pot_energy, impulse) = step(&mut particles, &grid, &bound, &dt, &ext_accel, heat_injection);
-    pressure.push_sample(impulse); // record pressure
+    total_impulse += impulse;
 
     if bound_rate.0 != 0.0 {
         bound.expand(bound_rate.0, dt.0)
@@ -56,6 +59,8 @@ pub fn advance_simulation(
             .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
             .sum();
     energy.potential = pot_energy;
+    // record pressure
+    pressure.push_sample(total_impulse); 
 
 }
 

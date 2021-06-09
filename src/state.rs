@@ -19,10 +19,11 @@ use std::collections::VecDeque;
 pub struct SimulationPrototype {
     bound: Boundary, // location of the 6 walls of the box
 
-    grid_unit_size: f32, // how big a grid point is
-    grid_reach: usize,   // particle interaction cutoff
-    dt: f32,             // time step
-    ext_a: Vec3,         // external acceleration applied to all particles
+    grid_unit_size: f32,        // how big a grid point is
+    grid_reach: usize,          // particle interaction cutoff
+    dt: f32,                    // time step
+    steps_per_frame: usize,
+    ext_a: Vec3,                // external acceleration applied to all particles
     particles: Vec<Particle>,
 }
 
@@ -36,6 +37,7 @@ impl SimulationPrototype {
             grid_unit_size: 1.0,
             grid_reach: 1,
             dt: 0.001,
+            steps_per_frame: 20,
             ext_a: Vec3::new(0.0, 0.0, 0.0),
             particles: Vec::new(),
         }
@@ -93,6 +95,11 @@ impl SimulationPrototype {
         self
     }
 
+    pub fn set_steps_per_frame(mut self, spf: usize) -> Self {
+        self.steps_per_frame = spf;
+        self
+    }
+
     pub fn set_ext_a(mut self, ext_a: Vec3) -> Self {
         self.ext_a = ext_a;
         self
@@ -105,7 +112,7 @@ impl SimulationPrototype {
 
     ////////////////
     // Compilation
-    // Check for consistency and create a State
+    // Check for consistency and create a VDWSimulation
     //
     pub fn compile(&self) -> Result<VDWSimulation, InvalidParamError> {
         let mut errors = Vec::new();
@@ -121,6 +128,9 @@ impl SimulationPrototype {
         }
         if self.dt <= 0.0 {
             errors.push(ErrorKind::Dt);
+        }
+        if self.steps_per_frame <= 0 {
+            errors.push(ErrorKind::StepsPerFrame);
         }
 
         if !self
@@ -140,6 +150,7 @@ impl SimulationPrototype {
                 self.bound,
                 Grid::new(self.grid_unit_size, self.grid_reach),
                 self.dt,
+                self.steps_per_frame,
                 self.ext_a,
                 self.particles.clone(),
             ))
@@ -160,6 +171,8 @@ pub struct InjectRate(pub f32);
 #[derive(Clone, Copy)]
 pub struct Dt(pub f32);
 #[derive(Clone, Copy)]
+pub struct StepsPerFrame(pub usize);
+#[derive(Clone, Copy)]
 pub struct ExtAccel(pub Vec3);
 #[derive(Clone, Copy, Default)]
 pub struct Energy {
@@ -170,17 +183,22 @@ pub struct Energy {
 // This is a ring buffer
 pub struct Pressure {
     data: VecDeque<f32>,
+    sum_cache: f32,
+    dt: f32 // time per data point
 }
 impl Pressure {
     // Create ring buffer with capacity, all entries initialized to zero
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn new(capacity: usize, dt: f32) -> Self {
         Self {
             data: VecDeque::from(vec![0.0; capacity]),
+            sum_cache: 0.0,
+            dt
         }
     }
 
     pub fn push_sample(&mut self, value: f32) {
-        self.data.pop_front();
+        self.sum_cache -= self.data.pop_front().unwrap_or(0.0);
+        self.sum_cache += value;
         self.data.push_back(value);
     }
 
@@ -190,7 +208,7 @@ impl Pressure {
 
     // Calulate the pressure based on sampled values
     pub fn get_value(&self, surface_area: f32) -> f32 {
-        self.data.iter().sum::<f32>() / self.data.len() as f32 / surface_area
+        self.sum_cache / self.data.len() as f32 / self.dt / surface_area
     }
 }
 
@@ -204,13 +222,14 @@ pub struct VDWSimulation {
     bound: Boundary, // location of the 6 walls of the box
     grid: Grid,
     dt: Dt,
+    steps_per_frame: StepsPerFrame,
     ext_accel: ExtAccel, // external acceleration applied to all particles
 
     pub particles: Vec<Particle>,
 }
 
 impl VDWSimulation {
-    const PRESSURE_SAMPLING_PERIOD: f32 = 1.0; // Average impulses over this period of time
+    const PRESSURE_SAMPLING_PERIOD: f32 = 3.0; // Average impulses over this period of time
 
     // Make a new State
     // This function is only used by StatePrototype's compile method
@@ -218,6 +237,7 @@ impl VDWSimulation {
         bound: Boundary,
         grid: Grid,
         dt: f32,
+        steps_per_frame: usize,
         ext_accel: Vec3,
         particles: Vec<Particle>,
     ) -> Self {
@@ -225,6 +245,7 @@ impl VDWSimulation {
             bound,
             grid,
             dt: Dt(dt),
+            steps_per_frame: StepsPerFrame(steps_per_frame),
             ext_accel: ExtAccel(ext_accel),
 
             particles,
@@ -237,10 +258,13 @@ impl Plugin for VDWSimulation {
         app.insert_resource(self.bound)
            .insert_resource(self.grid)
            .insert_resource(self.dt)
+           .insert_resource(self.steps_per_frame)
            .insert_resource(self.ext_accel)
            .insert_resource(self.particles.clone())
 
-           .insert_resource(Pressure::with_capacity((Self::PRESSURE_SAMPLING_PERIOD / self.dt.0) as usize))
+           .insert_resource(Pressure::new(
+               (Self::PRESSURE_SAMPLING_PERIOD / self.dt.0 / self.steps_per_frame.0 as f32) as usize, 
+               self.dt.0 * self.steps_per_frame.0 as f32))
            .insert_resource(TargetTemp(0.0))
            .insert_resource(InjectRate(0.0))
            .insert_resource(BoundRate(0.0))

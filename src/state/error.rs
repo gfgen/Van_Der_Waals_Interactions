@@ -9,6 +9,7 @@ pub enum ErrorKind {
     UnitSize,
     Reach,
     Dt,
+    StepsPerFrame,
     Particle,
 }
 

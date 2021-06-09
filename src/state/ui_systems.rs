@@ -27,13 +27,22 @@ pub fn simulation_info(
     pressure: Res<Pressure>
 ) {
     let total_energy = energy.kinetic + energy.potential;
-    egui::Window::new("Info").show(egui_context.ctx(), |ui| {
-        ui.label(format!("P: {}", pressure.get_value(bound.get_surface_area())));
-        ui.label(format!("T: {}", energy.kinetic / particles.len() as f32));
-        ui.label(format!("V: {:.6}", bound.get_volume()));
-        ui.label(format!("KE: {:.6}", energy.kinetic));
-        ui.label(format!("PE: {:.6}", energy.potential));
-        ui.label(format!("Total Energy: {:.6}", total_energy));
+
+    let pressure = pressure.get_value(bound.get_surface_area());
+    let volume = bound.get_volume();
+    let k = 2.0 / 3.0;
+
+    egui::Window::new("Pressure/Volume/Temperature").show(egui_context.ctx(), |ui| {
+        ui.label(format!("PV/nkT: {:.5}", pressure * volume / k / energy.kinetic));
+        ui.label(format!("P: {:.5}", pressure));
+        ui.label(format!("V: {:.5}", volume));
+        ui.label(format!("T: {:.5}", energy.kinetic / particles.len() as f32));
+    });
+
+    egui::Window::new("Energy").show(egui_context.ctx(), |ui| {
+        ui.label(format!("KE: {:.5}", energy.kinetic));
+        ui.label(format!("PE: {:.5}", energy.potential));
+        ui.label(format!("Total Energy: {:.5}", total_energy));
     });
 }
 
