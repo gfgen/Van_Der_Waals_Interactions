@@ -1,12 +1,12 @@
-use bevy::prelude::*;
-use rayon::iter::IntoParallelIterator;
-use super::*;
 use super::particle::*;
 use super::sim_space::*;
-use rayon::prelude::*;
+use super::*;
 use crate::bevy_flycam::{FlyCam, InputState};
+use bevy::prelude::*;
 use bevy::render::pipeline::PrimitiveTopology;
 use itertools::iproduct;
+use rayon::iter::IntoParallelIterator;
+use rayon::prelude::*;
 
 // Marker Component:
 pub struct IsParticle;
@@ -28,7 +28,7 @@ pub fn advance_simulation(
     inject_rate: Res<InjectRate>,
 
     mut energy: ResMut<Energy>,
-    mut pressure: ResMut<Pressure>
+    mut pressure: ResMut<Pressure>,
 ) {
     // calculate heat injection
     let current_temp = energy.kinetic / particles.len() as f32;
@@ -38,7 +38,14 @@ pub fn advance_simulation(
 
     // Step simulation
     for _i in 0..(steps_per_frame.0 - 1) {
-        let (_, impulse) = step(&mut particles, &grid, &bound, &dt, &ext_accel, heat_injection);
+        let (_, impulse) = step(
+            &mut particles,
+            &grid,
+            &bound,
+            &dt,
+            &ext_accel,
+            heat_injection,
+        );
         total_impulse += impulse;
 
         if bound_rate.0 != 0.0 {
@@ -46,7 +53,14 @@ pub fn advance_simulation(
         }
     }
 
-    let (pot_energy, impulse) = step(&mut particles, &grid, &bound, &dt, &ext_accel, heat_injection);
+    let (pot_energy, impulse) = step(
+        &mut particles,
+        &grid,
+        &bound,
+        &dt,
+        &ext_accel,
+        heat_injection,
+    );
     total_impulse += impulse;
 
     if bound_rate.0 != 0.0 {
@@ -55,13 +69,12 @@ pub fn advance_simulation(
 
     // Record energy
     energy.kinetic = particles
-            .iter_mut()
-            .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
-            .sum();
+        .iter_mut()
+        .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
+        .sum();
     energy.potential = pot_energy;
     // record pressure
-    pressure.push_sample(total_impulse); 
-
+    pressure.push_sample(total_impulse);
 }
 
 // Execute one time step
@@ -82,18 +95,19 @@ fn step(
         .for_each(|particle| particle.step_pos(dt.0, 0.5));
 
     // calculate accelerations and step velocity
-    let (accelerations, neighbors, pot_enery, impulse) = calculate_particle_acceleration(particles, grid, bound, dt, ext_accel);
-    (&mut (*particles), accelerations).into_par_iter()
+    let (accelerations, neighbors, pot_enery, impulse) =
+        calculate_particle_acceleration(particles, grid, bound, dt, ext_accel);
+    (&mut (*particles), accelerations)
+        .into_par_iter()
         .for_each(|(particle, acc)| particle.step_vel(acc, dt.0, 1.0));
 
     // inject/drain heat into/from system
-    particles
-        .par_iter_mut()
-        .for_each(|particle| {
-            particle.heat(dt.0, heat_injection);
-        });
+    particles.par_iter_mut().for_each(|particle| {
+        particle.heat(dt.0, heat_injection);
+    });
     // save number of neighbors
-    (&mut (*particles), neighbors).into_par_iter()
+    (&mut (*particles), neighbors)
+        .into_par_iter()
         .for_each(|(particle, nei)| particle.neighbors = nei);
 
     // step position again
@@ -112,7 +126,7 @@ fn calculate_particle_acceleration(
     grid: &Grid,
     bound: &Boundary,
     dt: &Dt,
-    ext_accel: &ExtAccel
+    ext_accel: &ExtAccel,
 ) -> (Vec<Vec3>, Vec<usize>, f32, f32) {
     // Collect particle positions
     let particle_pos = particles
@@ -134,10 +148,7 @@ fn calculate_particle_acceleration(
 
     // calculate pressure and potential energy
     let potential_energy: f32 = potential_energies.iter().sum();
-    let impulse: f32 = bound_force
-        .iter()
-        .map(|bnd_f| bnd_f.length() * dt.0)
-        .sum();
+    let impulse: f32 = bound_force.iter().map(|bnd_f| bnd_f.length() * dt.0).sum();
 
     (accelerations, neighbors, potential_energy, impulse)
 }
@@ -146,7 +157,7 @@ fn calculate_particle_acceleration(
 pub fn update_particles_renders(
     particles: Res<Vec<Particle>>,
     particle_mats: Res<ParticleMats>,
-    mut particle_renders: Query<(&mut Transform, &mut Handle<StandardMaterial>), With<IsParticle>>
+    mut particle_renders: Query<(&mut Transform, &mut Handle<StandardMaterial>), With<IsParticle>>,
 ) {
     for ((mut trans, mut mat), particle) in particle_renders.iter_mut().zip(particles.iter()) {
         let pos = particle.get_pos();
@@ -164,11 +175,13 @@ pub fn update_particles_renders(
 pub fn update_bounding_box_renders(
     mut meshes: ResMut<Assets<Mesh>>,
     bound: Res<Boundary>,
-    mut bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>
+    mut bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>,
 ) {
-    if !bound.is_changed() { return; }
+    if !bound.is_changed() {
+        return;
+    }
 
-    let binary = [0.0, 1.0];    // generate the four corners of each axis
+    let binary = [0.0, 1.0]; // generate the four corners of each axis
     let conditions = [0, 1, 2]; // stands for x, y, z axis
     let multipliers = iproduct!(conditions.iter(), binary.iter(), binary.iter());
 
@@ -176,7 +189,9 @@ pub fn update_bounding_box_renders(
     let line_y = meshes.add(create_line_mesh(0.0, bound.y, 0.0));
     let line_z = meshes.add(create_line_mesh(0.0, 0.0, bound.z));
 
-    for ((&cond, &mult1, &mult2), (mut trans, mut mesh)) in multipliers.zip(bounding_box_renders.iter_mut()) {
+    for ((&cond, &mult1, &mult2), (mut trans, mut mesh)) in
+        multipliers.zip(bounding_box_renders.iter_mut())
+    {
         // edges along the x axis
         if cond == 0 {
             *mesh = line_x.clone();
@@ -186,13 +201,11 @@ pub fn update_bounding_box_renders(
         else if cond == 1 {
             *mesh = line_y.clone();
             trans.translation = Vec3::new(bound.x * mult1, 0.0, bound.z * mult2);
-
         }
         // edges along the z axis
         else if cond == 2 {
             *mesh = line_z.clone();
             trans.translation = Vec3::new(bound.x * mult1, bound.y * mult2, 0.0);
-
         }
     }
 }
@@ -201,7 +214,7 @@ pub fn setup_bounding_box(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    bound: Res<Boundary>
+    bound: Res<Boundary>,
 ) {
     // Draw bounding Box
     let multipliers = [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0)];
@@ -213,33 +226,51 @@ pub fn setup_bounding_box(
 
     let line_x = meshes.add(create_line_mesh(bound.x, 0.0, 0.0));
     for &(mult1, mult2) in multipliers.iter() {
-        commands.spawn().insert_bundle(PbrBundle {
-            mesh: line_x.clone(),
-            material: white_mat_unlit.clone(),
-            transform: Transform::from_translation(Vec3::new(0.0, bound.y * mult1, bound.z * mult2)),
-            ..Default::default()
-        })
-        .insert(IsBoundEdge);
+        commands
+            .spawn()
+            .insert_bundle(PbrBundle {
+                mesh: line_x.clone(),
+                material: white_mat_unlit.clone(),
+                transform: Transform::from_translation(Vec3::new(
+                    0.0,
+                    bound.y * mult1,
+                    bound.z * mult2,
+                )),
+                ..Default::default()
+            })
+            .insert(IsBoundEdge);
     }
     let line_y = meshes.add(create_line_mesh(0.0, bound.y, 0.0));
     for &(mult1, mult2) in multipliers.iter() {
-        commands.spawn().insert_bundle(PbrBundle {
-            mesh: line_y.clone(),
-            material: white_mat_unlit.clone(),
-            transform: Transform::from_translation(Vec3::new(bound.x * mult1, 0.0, bound.z * mult2)),
-            ..Default::default()
-        })
-        .insert(IsBoundEdge);
+        commands
+            .spawn()
+            .insert_bundle(PbrBundle {
+                mesh: line_y.clone(),
+                material: white_mat_unlit.clone(),
+                transform: Transform::from_translation(Vec3::new(
+                    bound.x * mult1,
+                    0.0,
+                    bound.z * mult2,
+                )),
+                ..Default::default()
+            })
+            .insert(IsBoundEdge);
     }
     let line_z = meshes.add(create_line_mesh(0.0, 0.0, bound.z));
     for &(mult1, mult2) in multipliers.iter() {
-        commands.spawn().insert_bundle(PbrBundle {
-            mesh: line_z.clone(),
-            material: white_mat_unlit.clone(),
-            transform: Transform::from_translation(Vec3::new(bound.x * mult1, bound.y * mult2, 0.0)),
-            ..Default::default()
-        })
-        .insert(IsBoundEdge);
+        commands
+            .spawn()
+            .insert_bundle(PbrBundle {
+                mesh: line_z.clone(),
+                material: white_mat_unlit.clone(),
+                transform: Transform::from_translation(Vec3::new(
+                    bound.x * mult1,
+                    bound.y * mult2,
+                    0.0,
+                )),
+                ..Default::default()
+            })
+            .insert(IsBoundEdge);
     }
 }
 
@@ -247,7 +278,10 @@ pub fn setup_bounding_box(
 fn create_line_mesh(x: f32, y: f32, z: f32) -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::LineStrip);
     mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, vec![[0.0, 0.0, 0.0], [x, y, z]]);
-    mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]);
+    mesh.set_attribute(
+        Mesh::ATTRIBUTE_NORMAL,
+        vec![[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]],
+    );
     mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 0.0, 0.0], [x, y, z]]);
     mesh
 }
@@ -255,16 +289,15 @@ fn create_line_mesh(x: f32, y: f32, z: f32) -> Mesh {
 ////////////////////////////////////////////
 pub struct ParticleMats {
     white: Handle<StandardMaterial>,
-    blue: Handle<StandardMaterial>
+    blue: Handle<StandardMaterial>,
 }
 
 pub fn setup_particles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    particles: Res<Vec<Particle>>
+    particles: Res<Vec<Particle>>,
 ) {
-
     // Insert particle renders
     let white_mat = materials.add(StandardMaterial {
         base_color: Color::WHITE,
@@ -285,18 +318,20 @@ pub fn setup_particles(
 
     let n = particles.len();
     for _i in 0..n {
-        commands.spawn().insert_bundle(PbrBundle {
-            mesh: sphere_mesh.clone(),
-            material: white_mat.clone(),
-            transform: Transform::from_translation(Vec3::ZERO),
-            ..Default::default()
-        })
-        .insert(IsParticle);
+        commands
+            .spawn()
+            .insert_bundle(PbrBundle {
+                mesh: sphere_mesh.clone(),
+                material: white_mat.clone(),
+                transform: Transform::from_translation(Vec3::ZERO),
+                ..Default::default()
+            })
+            .insert(IsParticle);
     }
 
     commands.insert_resource(ParticleMats {
         white: white_mat,
-        blue: blue_mat
+        blue: blue_mat,
     })
 }
 
@@ -304,14 +339,17 @@ pub fn setup_particles(
 pub fn setup_camera(
     mut commands: Commands,
     bound: Res<Boundary>,
-    mut input_state: ResMut<InputState>
+    mut input_state: ResMut<InputState>,
 ) {
     // Initialize Camera
     let camera_position = Vec3::new(5.0, 3.0, -5.0);
-    let camera_trans = Transform::from_translation(camera_position).looking_at(bound.center() - camera_position, Vec3::Y);
+    let camera_trans = Transform::from_translation(camera_position)
+        .looking_at(bound.center() - camera_position, Vec3::Y);
     let (axis, angle) = camera_trans.rotation.to_axis_angle();
     input_state.reset_axis_angle(axis, angle);
-    commands.spawn().insert_bundle(PerspectiveCameraBundle {
+    commands
+        .spawn()
+        .insert_bundle(PerspectiveCameraBundle {
             transform: camera_trans,
             ..Default::default()
         })

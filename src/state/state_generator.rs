@@ -1,9 +1,9 @@
+use super::particle::Particle;
+use super::sim_space::Boundary;
+use super::SimulationPrototype;
 use bevy::prelude::Vec3;
 use rand::Rng;
 use rand_distr::StandardNormal;
-use super::SimulationPrototype;
-use super::particle::Particle;
-use super::sim_space::Boundary;
 
 pub trait Initialize: Sized {
     fn get_bound(&self) -> Boundary;
@@ -14,27 +14,22 @@ pub trait Initialize: Sized {
         let mut particles = vec![];
 
         for _i in 0..n {
-
-            let mut pos = Vec3::new(rng.sample(StandardNormal), rng.sample(StandardNormal), rng.sample(StandardNormal));
+            let mut pos = Vec3::new(
+                rng.sample(StandardNormal),
+                rng.sample(StandardNormal),
+                rng.sample(StandardNormal),
+            );
             pos = (pos * sigma) + bound.center(); // control spread and move to center of boundary
 
             // Trim invalid positions
             pos = pos.min(bound.hi_corner());
             pos = pos.max(bound.lo_corner());
 
-            particles.push(
-                Particle::new()
-                    .set_pos(
-                        pos.x,
-                        pos.y,
-                        pos.z
-                    )
-                    .set_vel(
-                        rng.sample::<f32, _>(StandardNormal) * temp,
-                        rng.sample::<f32, _>(StandardNormal) * temp,
-                        rng.sample::<f32, _>(StandardNormal) * temp
-                    ),
-            );
+            particles.push(Particle::new().set_pos(pos.x, pos.y, pos.z).set_vel(
+                rng.sample::<f32, _>(StandardNormal) * temp,
+                rng.sample::<f32, _>(StandardNormal) * temp,
+                rng.sample::<f32, _>(StandardNormal) * temp,
+            ));
         }
         self.set_particles(prune(particles))
     }
@@ -50,7 +45,6 @@ impl Initialize for SimulationPrototype {
         self
     }
 }
-
 
 // Delete particles that are too close to each other
 fn prune(particles: Vec<Particle>) -> Vec<Particle> {

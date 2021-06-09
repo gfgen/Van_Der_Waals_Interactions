@@ -8,12 +8,12 @@ extern crate rand_distr;
 extern crate rayon;
 extern crate ringbuffer as rb;
 
-mod state;
 mod bevy_flycam;
+mod state;
 
 use bevy::prelude::*;
-use bevy_flycam::NoCameraPlayerPlugin;
 use bevy_egui::EguiPlugin;
+use bevy_flycam::NoCameraPlayerPlugin;
 use state::state_generator::Initialize;
 
 fn main() -> Result<(), state::error::InvalidParamError> {
@@ -22,9 +22,9 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_bound_y(10.0)
         .set_bound_z(10.0)
         .set_dt(0.001)
-        .initialize_spherical_cloud( 1000, 1.0, 0.8)
+        .initialize_spherical_cloud(1000, 1.0, 0.8)
         .compile()?;
-    
+
     println!("n = {}", vdw_simulation.particles.len());
 
     App::build()
@@ -32,7 +32,6 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .add_plugin(NoCameraPlayerPlugin)
         .add_plugin(vdw_simulation)
         .add_plugin(EguiPlugin)
-
         // Set antialiasing to use 4 samples
         // .insert_resource(Msaa { samples: 2 })
         // Set WindowDescriptor Resource to change title and size
@@ -42,7 +41,6 @@ fn main() -> Result<(), state::error::InvalidParamError> {
             height: 800.,
             ..Default::default()
         })
-
         .run();
 
     Ok(())

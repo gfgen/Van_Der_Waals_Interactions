@@ -1,10 +1,10 @@
 pub mod error;
-pub mod state_generator;
 mod particle;
 mod physics;
-mod sim_space; 
-mod ui_systems;
+mod sim_space;
 mod sim_systems;
+pub mod state_generator;
+mod ui_systems;
 
 use bevy::prelude::*;
 use error::*;
@@ -19,11 +19,11 @@ use std::collections::VecDeque;
 pub struct SimulationPrototype {
     bound: Boundary, // location of the 6 walls of the box
 
-    grid_unit_size: f32,        // how big a grid point is
-    grid_reach: usize,          // particle interaction cutoff
-    dt: f32,                    // time step
+    grid_unit_size: f32, // how big a grid point is
+    grid_reach: usize,   // particle interaction cutoff
+    dt: f32,             // time step
     steps_per_frame: usize,
-    ext_a: Vec3,                // external acceleration applied to all particles
+    ext_a: Vec3, // external acceleration applied to all particles
     particles: Vec<Particle>,
 }
 
@@ -158,7 +158,6 @@ impl SimulationPrototype {
     }
 }
 
-
 /////////////////////////////
 // State component wrappers
 
@@ -177,14 +176,14 @@ pub struct ExtAccel(pub Vec3);
 #[derive(Clone, Copy, Default)]
 pub struct Energy {
     pub kinetic: f32,
-    pub potential: f32
+    pub potential: f32,
 }
 
 // This is a ring buffer
 pub struct Pressure {
     data: VecDeque<f32>,
     sum_cache: f32,
-    dt: f32 // time per data point
+    dt: f32, // time per data point
 }
 impl Pressure {
     // Create ring buffer with capacity, all entries initialized to zero
@@ -192,7 +191,7 @@ impl Pressure {
         Self {
             data: VecDeque::from(vec![0.0; capacity]),
             sum_cache: 0.0,
-            dt
+            dt,
         }
     }
 
@@ -211,7 +210,6 @@ impl Pressure {
         self.sum_cache / self.data.len() as f32 / self.dt / surface_area
     }
 }
-
 
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
@@ -256,30 +254,35 @@ impl VDWSimulation {
 impl Plugin for VDWSimulation {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(self.bound)
-           .insert_resource(self.grid)
-           .insert_resource(self.dt)
-           .insert_resource(self.steps_per_frame)
-           .insert_resource(self.ext_accel)
-           .insert_resource(self.particles.clone())
-
-           .insert_resource(Pressure::new(
-               (Self::PRESSURE_SAMPLING_PERIOD / self.dt.0 / self.steps_per_frame.0 as f32) as usize, 
-               self.dt.0 * self.steps_per_frame.0 as f32))
-           .insert_resource(TargetTemp(0.0))
-           .insert_resource(InjectRate(0.0))
-           .insert_resource(BoundRate(0.0))
-           .insert_resource(Energy::default()) // initialize for ui system
-           
-           .add_startup_system(sim_systems::setup_bounding_box.system())
-           .add_startup_system(sim_systems::setup_particles.system())
-           .add_startup_system(sim_systems::setup_camera.system())
-           
-           .add_system(sim_systems::advance_simulation.system().label("simulation"))
-           .add_system(sim_systems::update_particles_renders.system().after("simulation"))
-           .add_system(sim_systems::update_bounding_box_renders.system().after("simulation"))
-           .add_system(ui_systems::param_sliders.system())
-           .add_system(ui_systems::simulation_info.system());
+            .insert_resource(self.grid)
+            .insert_resource(self.dt)
+            .insert_resource(self.steps_per_frame)
+            .insert_resource(self.ext_accel)
+            .insert_resource(self.particles.clone())
+            .insert_resource(Pressure::new(
+                (Self::PRESSURE_SAMPLING_PERIOD / self.dt.0 / self.steps_per_frame.0 as f32)
+                    as usize,
+                self.dt.0 * self.steps_per_frame.0 as f32,
+            ))
+            .insert_resource(TargetTemp(0.0))
+            .insert_resource(InjectRate(0.0))
+            .insert_resource(BoundRate(0.0))
+            .insert_resource(Energy::default()) // initialize for ui system
+            .add_startup_system(sim_systems::setup_bounding_box.system())
+            .add_startup_system(sim_systems::setup_particles.system())
+            .add_startup_system(sim_systems::setup_camera.system())
+            .add_system(sim_systems::advance_simulation.system().label("simulation"))
+            .add_system(
+                sim_systems::update_particles_renders
+                    .system()
+                    .after("simulation"),
+            )
+            .add_system(
+                sim_systems::update_bounding_box_renders
+                    .system()
+                    .after("simulation"),
+            )
+            .add_system(ui_systems::param_sliders.system())
+            .add_system(ui_systems::simulation_info.system());
     }
 }
-
-

@@ -34,7 +34,11 @@ pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f3
 
     // determine neighbor
     let neighbor_threshold = 4.0 * R0.powi(2);
-    let neighbor = if r_norm_sqr < neighbor_threshold { 1 } else { 0 };
+    let neighbor = if r_norm_sqr < neighbor_threshold {
+        1
+    } else {
+        0
+    };
 
     (force, potential_adjusted, neighbor)
 }

@@ -15,7 +15,6 @@ impl InputState {
     pub fn reset_axis_angle(&mut self, axis: Vec3, angle: f32) {
         self.pitch = angle * axis.dot(Vec3::X);
         self.yaw = angle * axis.dot(Vec3::Y);
-
     }
 }
 /// Mouse sensitivity and movement speed
