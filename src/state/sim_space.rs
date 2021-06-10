@@ -100,7 +100,7 @@ impl Grid {
     // Sort particles into grid locations
     // Is used to approximate particle interactions
     // Returns a Grid object that contains a list of particle indices
-    //     and a list of location of the corresponding particle on the grid
+    //     and a list of locations of the corresponding particles on the grid
     // to be used internally
     fn make_grid(&self, ps: &Vec<Vec3>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
         // get a list of positional indicies from the particles

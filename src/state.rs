@@ -162,29 +162,31 @@ impl SimulationPrototype {
 /////////////////////////////
 // State component wrappers
 
-#[derive(Clone, Copy)]
-pub struct BoundRate(pub f32);
-#[derive(Clone, Copy)]
+pub struct BoundRate(pub f32); // Rate at which the boundary is growing/shrinking
 pub struct TargetTemp(pub f32);
-#[derive(Clone, Copy)]
 pub struct InjectRate(pub f32);
-#[derive(Clone, Copy)]
 pub struct Dt(pub f32);
-#[derive(Clone, Copy)]
 pub struct StepsPerFrame(pub usize);
-#[derive(Clone, Copy)]
 pub struct ExtAccel(pub Vec3);
 #[derive(Clone, Copy, Default)]
 pub struct Energy {
     pub kinetic: f32,
     pub potential: f32,
 }
+pub struct EnergyHistory(pub VecDeque<Energy>);
 
+// a struct to keep pressure stablized at a certain value
+// done by shrinking or expanding the boundary
+pub struct PressurePinned {
+    pub is_pinned: bool,
+    pub at_value: f32
+}
 // This is a ring buffer
 pub struct Pressure {
     data: VecDeque<f32>,
     sum_cache: f32,
     dt: f32, // time per data point
+    history: VecDeque<f32>,
 }
 impl Pressure {
     // Create ring buffer with capacity, all entries initialized to zero
@@ -193,6 +195,7 @@ impl Pressure {
             data: VecDeque::from(vec![0.0; capacity]),
             sum_cache: 0.0,
             dt,
+            history: VecDeque::from(vec![0.0; 1000]),
         }
     }
 
@@ -200,15 +203,14 @@ impl Pressure {
         self.sum_cache -= self.data.pop_front().unwrap_or(0.0);
         self.sum_cache += value;
         self.data.push_back(value);
-    }
 
-    pub fn get_capacity(&self) -> usize {
-        self.data.len()
+        self.history.pop_front();
+        self.history.push_back(self.get_impulse())
     }
 
     // Calulate the pressure based on sampled values
-    pub fn get_value(&self, surface_area: f32) -> f32 {
-        self.sum_cache / self.data.len() as f32 / self.dt / surface_area
+    pub fn get_impulse(&self) -> f32 {
+        self.sum_cache / self.data.len() as f32 / self.dt
     }
 }
 
@@ -220,15 +222,15 @@ impl Pressure {
 pub struct VDWSimulation {
     bound: Boundary, // location of the 6 walls of the box
     grid: Grid,
-    dt: Dt,
-    steps_per_frame: StepsPerFrame,
-    ext_accel: ExtAccel, // external acceleration applied to all particles
+    dt: f32,
+    steps_per_frame: usize,
+    ext_accel: Vec3, // external acceleration applied to all particles
 
     pub particles: Vec<Particle>,
 }
 
 impl VDWSimulation {
-    const PRESSURE_SAMPLING_PERIOD: f32 = 10.0; // Average impulses over this period of time
+    const PRESSURE_SAMPLING_PERIOD: f32 = 5.0; // Average impulses over this period of time
 
     // Make a new State
     // This function is only used by StatePrototype's compile method
@@ -243,9 +245,9 @@ impl VDWSimulation {
         Self {
             bound,
             grid,
-            dt: Dt(dt),
-            steps_per_frame: StepsPerFrame(steps_per_frame),
-            ext_accel: ExtAccel(ext_accel),
+            dt,
+            steps_per_frame,
+            ext_accel,
 
             particles,
         }
@@ -256,19 +258,24 @@ impl Plugin for VDWSimulation {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(self.bound)
             .insert_resource(self.grid)
-            .insert_resource(self.dt)
-            .insert_resource(self.steps_per_frame)
-            .insert_resource(self.ext_accel)
+            .insert_resource(Dt(self.dt))
+            .insert_resource(StepsPerFrame(self.steps_per_frame))
+            .insert_resource(ExtAccel(self.ext_accel))
             .insert_resource(self.particles.clone())
             .insert_resource(Pressure::new(
-                (Self::PRESSURE_SAMPLING_PERIOD / self.dt.0 / self.steps_per_frame.0 as f32)
+                (Self::PRESSURE_SAMPLING_PERIOD / self.dt / self.steps_per_frame as f32)
                     as usize,
-                self.dt.0 * self.steps_per_frame.0 as f32,
+                self.dt * self.steps_per_frame as f32,
             ))
+            .insert_resource(PressurePinned {
+                is_pinned: false,
+                at_value: 0.1
+            })
             .insert_resource(TargetTemp(0.0))
             .insert_resource(InjectRate(0.0))
             .insert_resource(BoundRate(0.0))
             .insert_resource(Energy::default()) // initialize for ui system
+            .insert_resource(EnergyHistory(VecDeque::from(vec![Energy::default(); 1000])))
             .add_startup_system(render_systems::setup_bounding_box.system())
             .add_startup_system(render_systems::setup_particles.system())
             .add_startup_system(render_systems::setup_camera.system())

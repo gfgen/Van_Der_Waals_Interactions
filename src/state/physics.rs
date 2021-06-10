@@ -20,7 +20,7 @@ pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f3
     let r_unit12 = r_unit6.powi(2);
     let r_unit14 = r_unit6 * r_unit8;
 
-    let force = 24.0 * ((2.0 / r_unit14) - (1.0 / r_unit8)) * r_unit;
+    let force = 24.0 * ((2.0 / r_unit14) - (2.0 / r_unit8)) * r_unit;
 
     // calculate potential
     let range_unit = range / R0;
@@ -28,8 +28,8 @@ pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f3
     let range_unit12 = range_unit6.powi(2);
 
     // this is the potential energy between two non-interacting particles need to shift this point to zero
-    let free_potential = 4.0 * ((1.0 / range_unit12) - (1.0 / range_unit6)) * R0;
-    let potential = 4.0 * ((1.0 / r_unit12) - (1.0 / r_unit6)) * R0;
+    let free_potential = 4.0 * ((1.0 / range_unit12) - (2.0 / range_unit6)) * R0;
+    let potential = 4.0 * ((1.0 / r_unit12) - (2.0 / r_unit6)) * R0;
     let potential_adjusted = (potential - free_potential) / 2.0;
 
     // determine neighbor

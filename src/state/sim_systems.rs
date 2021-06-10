@@ -1,3 +1,4 @@
+// bevy systems that advances the simulation
 use super::particle::*;
 use super::sim_space::*;
 use super::*;
@@ -15,7 +16,8 @@ pub fn advance_simulation(
     dt: Res<Dt>,
     steps_per_frame: Res<StepsPerFrame>,
     ext_accel: Res<ExtAccel>,
-    bound_rate: Res<BoundRate>,
+    mut bound_rate: ResMut<BoundRate>,
+    pressure_pinned: Res<PressurePinned>,
 
     targ_temp: Res<TargetTemp>,
     inject_rate: Res<InjectRate>,
@@ -28,10 +30,11 @@ pub fn advance_simulation(
     let heat_injection = (targ_temp.0 - current_temp) * inject_rate.0;
 
     let mut total_impulse = 0.0;
+    let mut pot_energy = 0.0;
 
     // Step simulation
-    for _i in 0..(steps_per_frame.0 - 1) {
-        let (_, impulse) = step(
+    for _i in 0..steps_per_frame.0 {
+        let (pe, impulse) = step(
             &mut particles,
             &grid,
             &bound,
@@ -40,24 +43,11 @@ pub fn advance_simulation(
             heat_injection,
         );
         total_impulse += impulse;
+        pot_energy = pe;
 
         if bound_rate.0 != 0.0 {
             bound.expand(bound_rate.0, dt.0)
         }
-    }
-
-    let (pot_energy, impulse) = step(
-        &mut particles,
-        &grid,
-        &bound,
-        &dt,
-        &ext_accel,
-        heat_injection,
-    );
-    total_impulse += impulse;
-
-    if bound_rate.0 != 0.0 {
-        bound.expand(bound_rate.0, dt.0)
     }
 
     // Record energy
@@ -67,7 +57,15 @@ pub fn advance_simulation(
         .sum();
     energy.potential = pot_energy;
     // record pressure
-    pressure.push_sample(total_impulse);
+    pressure.push_sample(total_impulse / bound.get_surface_area());
+
+    // Stablize pressure if applicable
+    if pressure_pinned.is_pinned {
+        let current_pressure = pressure.history.back().unwrap_or(&0.0);
+        let delta = current_pressure - pressure_pinned.at_value;
+        
+        bound_rate.0 = delta;
+    }
 }
 
 // Execute one time step

@@ -1,3 +1,4 @@
+// bevy systems that updates the render of the simulation
 use super::particle::*;
 use super::sim_space::*;
 use super::*;

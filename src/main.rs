@@ -22,6 +22,7 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_bound_y(10.0)
         .set_bound_z(10.0)
         .set_dt(0.001)
+        .set_steps_per_frame(50)
         .initialize_spherical_cloud(1000, 1.0, 0.8)
         .compile()?;
 
