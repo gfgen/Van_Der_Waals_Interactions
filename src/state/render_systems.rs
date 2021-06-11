@@ -56,7 +56,7 @@ pub fn update_bounding_box_renders(
             trans.translation = Vec3::new(bound.x * mult1, 0.0, bound.z * mult2);
         }
         // edges along the z axis
-        else if cond == 2 {
+        else {
             *mesh = line_z.clone();
             trans.translation = Vec3::new(bound.x * mult1, bound.y * mult2, 0.0);
         }

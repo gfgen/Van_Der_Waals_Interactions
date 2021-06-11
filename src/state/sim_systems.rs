@@ -19,8 +19,14 @@ pub fn advance_simulation(mut state: ResMut<SimulationState>) {
         let delta = current_pressure - state.pressure_pinned.at_value;
 
         state.bound_rate = delta;
+    } 
+    // Reset bound_rate on toggle off
+    else if state.pressure_pinned.previous_state {
+        state.bound_rate = 0.0;
     }
 
+    // dump energy status to terminal
+    // TODO: separate into independent system
     if state.steps % 300 == 0 {
         println!(
             "{}, {}",

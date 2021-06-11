@@ -173,6 +173,7 @@ pub struct Energy {
 // done by shrinking or expanding the boundary
 #[derive(Clone)]
 pub struct PressurePinned {
+    pub previous_state: bool, // To reset bound_rate when toggle
     pub is_pinned: bool,
     pub at_value: f32,
 }
@@ -389,6 +390,7 @@ impl VDWSimulation {
                 inject_rate: 0.0,
                 heat_injection_ammount: 0.0,
                 pressure_pinned: PressurePinned {
+                    previous_state: false,
                     is_pinned: false,
                     at_value: 0.5,
                 },

@@ -24,8 +24,8 @@ impl Grid {
     // Calculate the interactions between particles using the grid approximation
     // Return (accelerations, potential energies, # of neighbors)
     pub fn calculate_force(&self, particles: &Vec<Vec3>) -> (Vec<Vec3>, Vec<f32>, Vec<usize>) {
-        let (grid, locations) = self.make_grid(particles);
-        let (accelerations, (potential_energies, neighbors)) = locations
+        let (grid, particle_locations) = self.make_grid(particles);
+        let (accelerations, (potential_energies, neighbors)) = particle_locations
             .par_iter()
             .enumerate() // locations and particles has matching indices
             .map(|(particle_id, &location)| {
