@@ -15,9 +15,17 @@ pub fn advance_simulation(mut state: ResMut<SimulationState>) {
 
     // Stablize pressure if applicable
     if state.pressure_pinned.is_pinned {
-        let current_pressure = state.pressure.get_pressure();
+        let current_pressure = state.history.pressure.peak().unwrap_or(&0.0);
         let delta = current_pressure - state.pressure_pinned.at_value;
 
         state.bound_rate = delta;
+    }
+
+    if state.steps % 300 == 0 {
+        println!(
+            "{}, {}",
+            state.energy.kinetic + state.energy.potential,
+            state.energy.kinetic
+        );
     }
 }

@@ -127,6 +127,17 @@ pub fn setup_bounding_box(
             })
             .insert(IsBoundEdge);
     }
+
+    // Add Lights
+    commands.spawn().insert_bundle(LightBundle {
+        transform: Transform::from_translation(bound.lo_corner()),
+        ..Default::default()
+    });
+
+    commands.spawn().insert_bundle(LightBundle {
+        transform: Transform::from_translation(bound.hi_corner()),
+        ..Default::default()
+    });
 }
 
 // Helper function for draw bounding box
@@ -211,15 +222,4 @@ pub fn setup_camera(
             ..Default::default()
         })
         .insert(FlyCam);
-
-    // Add Lights
-    commands.spawn().insert_bundle(LightBundle {
-        transform: Transform::from_translation(bound.lo_corner()),
-        ..Default::default()
-    });
-
-    commands.spawn().insert_bundle(LightBundle {
-        transform: Transform::from_translation(bound.hi_corner()),
-        ..Default::default()
-    });
 }

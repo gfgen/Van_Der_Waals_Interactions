@@ -9,4 +9,4 @@
 **/*.rs.bk
 
 /.vscode
-energy.csv
+*.csv

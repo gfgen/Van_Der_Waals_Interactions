@@ -9,9 +9,7 @@ pub fn param_sliders(egui_context: ResMut<EguiContext>, mut state: ResMut<Simula
     egui::Window::new("Sliders").show(egui_context.ctx(), |ui| {
         ui.horizontal(|ui| {
             ui.checkbox(&mut state.pressure_pinned.is_pinned, "Pin pressure at: ");
-            ui.add(egui::widgets::DragValue::new(
-                &mut state.pressure_pinned.at_value,
-            ));
+            ui.add(egui::widgets::DragValue::new(&mut state.pressure_pinned.at_value).speed(0.02));
         });
         ui.add(egui::Slider::new(&mut state.bound_rate, -0.2..=0.2).text("Boundary"));
         ui.add(

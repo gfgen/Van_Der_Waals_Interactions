@@ -19,12 +19,12 @@ use state::state_generator::Initialize;
 
 fn main() -> Result<(), state::error::InvalidParamError> {
     let vdw_simulation = state::SimulationPrototype::new()
-        .set_bound_x(10.0)
-        .set_bound_y(10.0)
-        .set_bound_z(10.0)
+        .set_bound_x(15.0)
+        .set_bound_y(15.0)
+        .set_bound_z(15.0)
         .set_dt(0.001)
         .set_steps_per_frame(20)
-        .initialize_spherical_cloud(3000, 1.0, 0.8)
+        .initialize_spherical_cloud(2000, 1.0, 1.4)
         .compile()?;
 
     App::build()
