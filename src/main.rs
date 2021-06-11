@@ -9,8 +9,8 @@ extern crate rayon;
 extern crate ringbuffer as rb;
 
 mod bevy_flycam;
-mod state;
 mod ring_buffer;
+mod state;
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
@@ -26,7 +26,6 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_steps_per_frame(20)
         .initialize_spherical_cloud(3000, 1.0, 0.8)
         .compile()?;
-
 
     App::build()
         .add_plugins(DefaultPlugins)

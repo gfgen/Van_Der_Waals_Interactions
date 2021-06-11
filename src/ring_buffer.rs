@@ -1,17 +1,17 @@
-use std::collections::VecDeque;
 use std::collections::vec_deque::{Iter, IterMut};
+use std::collections::VecDeque;
 
 #[derive(Clone)]
 pub struct RingBuffer<T> {
     data: VecDeque<T>,
-    capacity: usize
+    capacity: usize,
 }
 
 impl<T> RingBuffer<T> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             data: VecDeque::new(),
-            capacity
+            capacity,
         }
     }
 
@@ -19,8 +19,11 @@ impl<T> RingBuffer<T> {
     // Return the overwritten value
     pub fn push(&mut self, val: T) -> Option<T> {
         self.data.push_back(val);
-        if self.data.len() == self.capacity { self.data.pop_front() }
-        else { None }
+        if self.data.len() == self.capacity {
+            self.data.pop_front()
+        } else {
+            None
+        }
     }
 
     // Pop the newest value

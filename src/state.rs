@@ -7,10 +7,10 @@ mod sim_systems;
 pub mod state_generator;
 mod ui_systems;
 
-use rayon::prelude::*;
 use bevy::prelude::*;
 use error::*;
 use particle::*;
+use rayon::prelude::*;
 use sim_space::*;
 
 use crate::ring_buffer::RingBuffer;
@@ -174,7 +174,7 @@ pub struct Energy {
 #[derive(Clone)]
 pub struct PressurePinned {
     pub is_pinned: bool,
-    pub at_value: f32
+    pub at_value: f32,
 }
 // Process instantaneous impulse data to return pressure
 #[derive(Clone)]
@@ -208,13 +208,13 @@ impl Pressure {
 #[derive(Clone)]
 pub struct History {
     energy: RingBuffer<Energy>,
-    pressure: RingBuffer<f32>
+    pressure: RingBuffer<f32>,
 }
 impl History {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             energy: RingBuffer::with_capacity(capacity),
-            pressure: RingBuffer::with_capacity(capacity)
+            pressure: RingBuffer::with_capacity(capacity),
         }
     }
 }
@@ -247,7 +247,7 @@ pub struct SimulationState {
     pub energy: Energy,
     pub pressure: Pressure,
     pub impulse_accumultor: f32, // cache for impulse, used to calculate pressure
-    pub history: History // history of energy and pressure
+    pub history: History,        // history of energy and pressure
 }
 
 impl SimulationState {
@@ -287,7 +287,6 @@ impl SimulationState {
             .par_iter_mut()
             .for_each(|particle| particle.step_pos(dt, 0.5));
 
-
         // adjust boundary size
         self.bound.expand(self.bound_rate, self.dt);
 
@@ -303,7 +302,8 @@ impl SimulationState {
     // internal helper function
     fn calculate_particle_acceleration(&mut self) -> (Vec<Vec3>, Vec<usize>, f32, f32) {
         // Collect particle positions
-        let particle_pos = self.particles
+        let particle_pos = self
+            .particles
             .iter()
             .map(|particle| particle.get_pos())
             .collect();
@@ -317,19 +317,25 @@ impl SimulationState {
             .into_par_iter()
             // @param bnd_f: force on particle by the bounding box
             // @param grd_f: force on particle by other particles as calculated through the grid
-            .map(|(particle, &bnd_f, &grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_accel)
+            .map(|(particle, &bnd_f, &grd_f)| {
+                (bnd_f + grd_f) / particle.get_mass() + self.ext_accel
+            })
             .collect();
 
         // calculate impulse and potential energy
         let potential_energy: f32 = potential_energies.iter().sum();
-        let impulse: f32 = bound_force.iter().map(|bnd_f| bnd_f.length() * self.dt).sum();
+        let impulse: f32 = bound_force
+            .iter()
+            .map(|bnd_f| bnd_f.length() * self.dt)
+            .sum();
 
         (accelerations, neighbors, potential_energy, impulse)
     }
 
     // Kinetic energy is cached in a variable, this function updates that cache
     pub fn recalculate_kinetic_energy(&mut self) {
-        self.energy.kinetic = self.particles
+        self.energy.kinetic = self
+            .particles
             .iter_mut()
             .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
             .sum();
@@ -356,7 +362,7 @@ impl SimulationState {
 
 // Plugin
 pub struct VDWSimulation {
-    resources: SimulationState
+    resources: SimulationState,
 }
 
 impl VDWSimulation {
@@ -372,7 +378,6 @@ impl VDWSimulation {
         steps_per_frame: usize,
         ext_accel: Vec3,
     ) -> Self {
-        
         Self {
             resources: SimulationState {
                 particles,
@@ -385,7 +390,7 @@ impl VDWSimulation {
                 heat_injection_ammount: 0.0,
                 pressure_pinned: PressurePinned {
                     is_pinned: false,
-                    at_value: 0.5
+                    at_value: 0.5,
                 },
 
                 dt,
@@ -395,20 +400,18 @@ impl VDWSimulation {
                 steps: 0,
                 energy: Energy::default(),
                 pressure: Pressure::new(
-                    (Self::PRESSURE_SAMPLING_PERIOD / dt / steps_per_frame as f32)
-                        as usize,
+                    (Self::PRESSURE_SAMPLING_PERIOD / dt / steps_per_frame as f32) as usize,
                     dt * steps_per_frame as f32,
                 ),
                 impulse_accumultor: 0.0,
-                history: History::with_capacity(1000)
-            }
+                history: History::with_capacity(1000),
+            },
         }
     }
 }
 impl Plugin for VDWSimulation {
     fn build(&self, app: &mut AppBuilder) {
-        app
-            .insert_resource(self.resources.clone())
+        app.insert_resource(self.resources.clone())
             .add_startup_system(render_systems::setup_bounding_box.system())
             .add_startup_system(render_systems::setup_particles.system())
             .add_startup_system(render_systems::setup_camera.system())
