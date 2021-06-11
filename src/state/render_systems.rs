@@ -1,6 +1,4 @@
 // bevy systems that updates the render of the simulation
-use super::particle::*;
-use super::sim_space::*;
 use super::*;
 use crate::bevy_flycam::{FlyCam, InputState};
 use bevy::render::pipeline::PrimitiveTopology;
@@ -12,11 +10,11 @@ pub struct IsBoundEdge;
 
 // Update the rendering of particles
 pub fn update_particles_renders(
-    particles: Res<Vec<Particle>>,
+    state: Res<SimulationState>,
     particle_mats: Res<ParticleMats>,
     mut particle_renders: Query<(&mut Transform, &mut Handle<StandardMaterial>), With<IsParticle>>,
 ) {
-    for ((mut trans, mut mat), particle) in particle_renders.iter_mut().zip(particles.iter()) {
+    for ((mut trans, mut mat), particle) in particle_renders.iter_mut().zip(state.particles.iter()) {
         let pos = particle.get_pos();
         *trans = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
 
@@ -30,14 +28,11 @@ pub fn update_particles_renders(
 
 // Update the rendering of bounding box
 pub fn update_bounding_box_renders(
+    state: Res<SimulationState>,
     mut meshes: ResMut<Assets<Mesh>>,
-    bound: Res<Boundary>,
     mut bounding_box_renders: Query<(&mut Transform, &mut Handle<Mesh>), With<IsBoundEdge>>,
 ) {
-    if !bound.is_changed() {
-        return;
-    }
-
+    let bound = state.bound;
     let binary = [0.0, 1.0]; // generate the four corners of each axis
     let conditions = [0, 1, 2]; // stands for x, y, z axis
     let multipliers = iproduct!(conditions.iter(), binary.iter(), binary.iter());
@@ -68,11 +63,13 @@ pub fn update_bounding_box_renders(
 }
 //////////////////////////////////////////
 pub fn setup_bounding_box(
+    state: Res<SimulationState>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    bound: Res<Boundary>,
 ) {
+    let bound = state.bound;
+
     // Draw bounding Box
     let multipliers = [(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0)];
     let white_mat_unlit = materials.add(StandardMaterial {
@@ -150,10 +147,10 @@ pub struct ParticleMats {
 }
 
 pub fn setup_particles(
+    state: Res<SimulationState>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    particles: Res<Vec<Particle>>,
 ) {
     // Insert particle renders
     let white_mat = materials.add(StandardMaterial {
@@ -173,7 +170,7 @@ pub fn setup_particles(
         subdivisions: 0,
     }));
 
-    let n = particles.len();
+    let n = state.particles.len();
     for _i in 0..n {
         commands
             .spawn()
@@ -195,9 +192,11 @@ pub fn setup_particles(
 ////////////////////////////////////////////////////////////
 pub fn setup_camera(
     mut commands: Commands,
-    bound: Res<Boundary>,
+    state: Res<SimulationState>,
     mut input_state: ResMut<InputState>,
 ) {
+    let bound = state.bound;
+
     // Initialize Camera
     let camera_position = Vec3::new(5.0, 3.0, -5.0);
     let camera_trans = Transform::from_translation(camera_position)

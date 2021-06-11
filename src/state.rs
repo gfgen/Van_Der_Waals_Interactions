@@ -12,7 +12,8 @@ use bevy::prelude::*;
 use error::*;
 use particle::*;
 use sim_space::*;
-use std::collections::VecDeque;
+
+use crate::ring_buffer::RingBuffer;
 
 /////////////////////////////////////////////////
 // Contains all simulation initial conditions
@@ -167,7 +168,6 @@ pub struct Energy {
     pub kinetic: f32,
     pub potential: f32,
 }
-pub struct EnergyHistory(pub VecDeque<Energy>);
 
 // a struct to keep pressure stablized at a certain value
 // done by shrinking or expanding the boundary
@@ -176,36 +176,30 @@ pub struct PressurePinned {
     pub is_pinned: bool,
     pub at_value: f32
 }
-// This is a ring buffer
+// Process instantaneous impulse data to return pressure
 #[derive(Clone)]
 pub struct Pressure {
-    data: VecDeque<f32>,
+    data: RingBuffer<f32>,
     sum_cache: f32,
     dt: f32, // time per data point
-    history: VecDeque<f32>,
 }
 impl Pressure {
     // Create ring buffer with capacity, all entries initialized to zero
     pub fn new(capacity: usize, dt: f32) -> Self {
         Self {
-            data: VecDeque::from(vec![0.0; capacity]),
+            data: RingBuffer::with_capacity(capacity),
             sum_cache: 0.0,
             dt,
-            history: VecDeque::from(vec![0.0; 1000]),
         }
     }
 
     pub fn push_sample(&mut self, value: f32) {
-        self.sum_cache -= self.data.pop_front().unwrap_or(0.0);
+        self.sum_cache -= self.data.push(value).unwrap_or(0.0);
         self.sum_cache += value;
-        self.data.push_back(value);
-
-        self.history.pop_front();
-        self.history.push_back(self.get_impulse())
     }
 
-    // Calulate the pressure based on sampled values
-    pub fn get_impulse(&self) -> f32 {
+    // Calulate the average impulse based on sampled values
+    pub fn get_pressure(&self) -> f32 {
         self.sum_cache / self.data.len() as f32 / self.dt
     }
 }
@@ -219,7 +213,7 @@ pub struct SimulationState {
     // Simulated entities
     pub particles: Vec<Particle>,
     pub bound: Boundary, // location of the 6 walls of the box
-    pub grid: Grid,
+    grid: Grid,
 
     // Simulation dynamic quantities
     pub bound_rate: f32,
@@ -234,8 +228,10 @@ pub struct SimulationState {
     pub ext_accel: Vec3, // external acceleration applied to all particles
 
     // Simulation measurements
+    pub steps: usize, // number of times step is called
     pub energy: Energy,
     pub pressure: Pressure,
+    pub impulse_accumultor: f32 // cache for impulse
 
 }
 
@@ -243,7 +239,8 @@ impl SimulationState {
     // Execute one time step
     // For now only uses leapfrog
     // return impulse recorded by boundary
-    pub fn step(&mut self) -> f32 {
+    pub fn step(&mut self) {
+        self.steps += 1;
         let dt = self.dt;
 
         // step position
@@ -281,7 +278,8 @@ impl SimulationState {
         // record potential energy
         self.energy.potential = pot_energy;
 
-        impulse
+        // accumulate impulse
+        self.impulse_accumultor += impulse;
     }
 
     // Return a list of acceleration correspond to each particle
@@ -306,13 +304,14 @@ impl SimulationState {
             .map(|(particle, &bnd_f, &grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_accel)
             .collect();
 
-        // calculate pressure and potential energy
+        // calculate impulse and potential energy
         let potential_energy: f32 = potential_energies.iter().sum();
         let impulse: f32 = bound_force.iter().map(|bnd_f| bnd_f.length() * self.dt).sum();
 
         (accelerations, neighbors, potential_energy, impulse)
     }
 
+    // Kinetic energy is cached in a variable, this function updates that cache
     pub fn recalculate_kinetic_energy(&mut self) {
         self.energy.kinetic = self.particles
             .iter_mut()
@@ -322,6 +321,14 @@ impl SimulationState {
         // update heat injection per time step
         let current_temp = self.energy.kinetic / self.particles.len() as f32;
         self.heat_injection_ammount = (self.target_temp - current_temp) * self.inject_rate;
+    }
+
+    // Commit the impulse value accumulated through many timesteps
+    // Reset the value
+    pub fn commit_pressure(&mut self) {
+        let pressure_value = self.impulse_accumultor / self.bound.get_surface_area();
+        self.pressure.push_sample(pressure_value);
+        self.impulse_accumultor = 0.0;
     }
 
 }
@@ -364,12 +371,14 @@ impl VDWSimulation {
                 steps_per_frame,
                 ext_accel,
 
+                steps: 0,
                 energy: Energy::default(),
                 pressure: Pressure::new(
                     (Self::PRESSURE_SAMPLING_PERIOD / dt / steps_per_frame as f32)
                         as usize,
                     dt * steps_per_frame as f32,
-                )
+                ),
+                impulse_accumultor: 0.0,
             }
         }
     }

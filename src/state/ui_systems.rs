@@ -22,21 +22,21 @@ pub fn param_sliders(
 
 pub fn simulation_info(
     egui_context: ResMut<EguiContext>,
-    mut state: Res<SimulationState>
+    state: Res<SimulationState>
 ) {
     let total_energy = state.energy.kinetic + state.energy.potential;
 
-    let pressure_val = state.pressure.history.back().unwrap_or(&0.0);
+    let pressure_val = state.pressure.get_pressure();
     let volume = state.bound.get_volume();
     let k = 2.0 / 3.0;
 
-    let pressure_curve = Curve::from_values_iter(
+/*     let pressure_curve = Curve::from_values_iter(
         state.pressure
             .history
             .iter()
             .enumerate()
             .map(|(i, &p)| Value::new(i as f64, p))
-    );
+    ); */
 
 /*     let kin_energy_curve = Curve::from_values_iter(
         energy_history.0.iter()
@@ -57,7 +57,7 @@ pub fn simulation_info(
         ui.label(format!("P: {:.5}", pressure_val));
         ui.label(format!("V: {:.5}", volume));
         ui.label(format!("T: {:.5}", state.energy.kinetic / state.particles.len() as f32));
-        ui.add(Plot::new("Pressure").curve(pressure_curve));
+        // ui.add(Plot::new("Pressure").curve(pressure_curve));
     });
 
     egui::Window::new("Energy").show(egui_context.ctx(), |ui| {
