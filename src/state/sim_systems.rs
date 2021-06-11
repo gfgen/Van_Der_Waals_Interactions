@@ -13,6 +13,7 @@ pub fn advance_simulation(
     }
     state.recalculate_kinetic_energy();
     state.commit_pressure();
+    state.record_history();
 
 
     // Stablize pressure if applicable

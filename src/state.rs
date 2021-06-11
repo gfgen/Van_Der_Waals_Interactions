@@ -204,6 +204,21 @@ impl Pressure {
     }
 }
 
+// Store the previous entries of energy and pressure
+#[derive(Clone)]
+pub struct History {
+    energy: RingBuffer<Energy>,
+    pressure: RingBuffer<f32>
+}
+impl History {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            energy: RingBuffer::with_capacity(capacity),
+            pressure: RingBuffer::with_capacity(capacity)
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
 // Can only be created by compiling a StatePrototype
@@ -231,8 +246,8 @@ pub struct SimulationState {
     pub steps: usize, // number of times step is called
     pub energy: Energy,
     pub pressure: Pressure,
-    pub impulse_accumultor: f32 // cache for impulse
-
+    pub impulse_accumultor: f32, // cache for impulse, used to calculate pressure
+    pub history: History // history of energy and pressure
 }
 
 impl SimulationState {
@@ -262,6 +277,7 @@ impl SimulationState {
         });
 
         // save number of neighbors
+        // used for rendering particles with different colors
         (&mut self.particles, neighbors)
             .into_par_iter()
             .for_each(|(particle, nei)| particle.neighbors = nei);
@@ -331,6 +347,11 @@ impl SimulationState {
         self.impulse_accumultor = 0.0;
     }
 
+    // Save current energy and pressure to history
+    pub fn record_history(&mut self) {
+        self.history.energy.push(self.energy);
+        self.history.pressure.push(self.pressure.get_pressure());
+    }
 }
 
 // Plugin
@@ -379,6 +400,7 @@ impl VDWSimulation {
                     dt * steps_per_frame as f32,
                 ),
                 impulse_accumultor: 0.0,
+                history: History::with_capacity(1000)
             }
         }
     }
