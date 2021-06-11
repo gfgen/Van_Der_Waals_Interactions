@@ -26,7 +26,6 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .initialize_spherical_cloud(1000, 1.0, 0.8)
         .compile()?;
 
-    println!("n = {}", vdw_simulation.particles.len());
 
     App::build()
         .add_plugins(DefaultPlugins)

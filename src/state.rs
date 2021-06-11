@@ -7,6 +7,7 @@ mod sim_systems;
 pub mod state_generator;
 mod ui_systems;
 
+use rayon::prelude::*;
 use bevy::prelude::*;
 use error::*;
 use particle::*;
@@ -148,12 +149,12 @@ impl SimulationPrototype {
             Err(InvalidParamError::new(errors))
         } else {
             Ok(VDWSimulation::new(
+                self.particles.clone(),
                 self.bound,
                 Grid::new(self.grid_unit_size, self.grid_reach),
                 self.dt,
                 self.steps_per_frame,
                 self.ext_a,
-                self.particles.clone(),
             ))
         }
     }
@@ -161,13 +162,6 @@ impl SimulationPrototype {
 
 /////////////////////////////
 // State component wrappers
-
-pub struct BoundRate(pub f32); // Rate at which the boundary is growing/shrinking
-pub struct TargetTemp(pub f32);
-pub struct InjectRate(pub f32);
-pub struct Dt(pub f32);
-pub struct StepsPerFrame(pub usize);
-pub struct ExtAccel(pub Vec3);
 #[derive(Clone, Copy, Default)]
 pub struct Energy {
     pub kinetic: f32,
@@ -177,11 +171,13 @@ pub struct EnergyHistory(pub VecDeque<Energy>);
 
 // a struct to keep pressure stablized at a certain value
 // done by shrinking or expanding the boundary
+#[derive(Clone)]
 pub struct PressurePinned {
     pub is_pinned: bool,
     pub at_value: f32
 }
 // This is a ring buffer
+#[derive(Clone)]
 pub struct Pressure {
     data: VecDeque<f32>,
     sum_cache: f32,
@@ -216,17 +212,123 @@ impl Pressure {
 
 //////////////////////////////////////////////////////////////
 // State contains all simulation parameters and particle data
-// Is a bevy Plugin
 // Can only be created by compiling a StatePrototype
 //
-pub struct VDWSimulation {
-    bound: Boundary, // location of the 6 walls of the box
-    grid: Grid,
-    dt: f32,
-    steps_per_frame: usize,
-    ext_accel: Vec3, // external acceleration applied to all particles
-
+#[derive(Clone)]
+pub struct SimulationState {
+    // Simulated entities
     pub particles: Vec<Particle>,
+    pub bound: Boundary, // location of the 6 walls of the box
+    pub grid: Grid,
+
+    // Simulation dynamic quantities
+    pub bound_rate: f32,
+    pub target_temp: f32,
+    pub inject_rate: f32,
+    heat_injection_ammount: f32, // private cache
+    pub pressure_pinned: PressurePinned,
+
+    // Simulation constants
+    pub dt: f32,
+    pub steps_per_frame: usize,
+    pub ext_accel: Vec3, // external acceleration applied to all particles
+
+    // Simulation measurements
+    pub energy: Energy,
+    pub pressure: Pressure,
+
+}
+
+impl SimulationState {
+    // Execute one time step
+    // For now only uses leapfrog
+    // return impulse recorded by boundary
+    pub fn step(&mut self) -> f32 {
+        let dt = self.dt;
+
+        // step position
+        self.particles
+            .par_iter_mut()
+            .for_each(|particle| particle.step_pos(dt, 0.5));
+
+        // calculate accelerations and step velocity
+        let (accelerations, neighbors, pot_energy, impulse) =
+            self.calculate_particle_acceleration();
+        (&mut self.particles, accelerations)
+            .into_par_iter()
+            .for_each(|(particle, acc)| particle.step_vel(acc, dt, 1.0));
+
+        // inject/drain heat into/from system
+        let heat_injection_ammount = self.heat_injection_ammount;
+        self.particles.par_iter_mut().for_each(|particle| {
+            particle.heat(dt, heat_injection_ammount);
+        });
+
+        // save number of neighbors
+        (&mut self.particles, neighbors)
+            .into_par_iter()
+            .for_each(|(particle, nei)| particle.neighbors = nei);
+
+        // step position again
+        self.particles
+            .par_iter_mut()
+            .for_each(|particle| particle.step_pos(dt, 0.5));
+
+
+        // adjust boundary size
+        self.bound.expand(self.bound_rate, self.dt);
+
+        // record potential energy
+        self.energy.potential = pot_energy;
+
+        impulse
+    }
+
+    // Return a list of acceleration correspond to each particle
+    // Return the potential energy and pressure of the system
+    // internal helper function
+    fn calculate_particle_acceleration(&mut self) -> (Vec<Vec3>, Vec<usize>, f32, f32) {
+        // Collect particle positions
+        let particle_pos = self.particles
+            .iter()
+            .map(|particle| particle.get_pos())
+            .collect();
+
+        // Calculate forces
+        let bound_force = self.bound.calculate_force(&particle_pos);
+        let (grid_force, potential_energies, neighbors) = self.grid.calculate_force(&particle_pos);
+
+        // Sum up accelerations
+        let accelerations = (&self.particles, &bound_force, &grid_force)
+            .into_par_iter()
+            // @param bnd_f: force on particle by the bounding box
+            // @param grd_f: force on particle by other particles as calculated through the grid
+            .map(|(particle, &bnd_f, &grd_f)| (bnd_f + grd_f) / particle.get_mass() + self.ext_accel)
+            .collect();
+
+        // calculate pressure and potential energy
+        let potential_energy: f32 = potential_energies.iter().sum();
+        let impulse: f32 = bound_force.iter().map(|bnd_f| bnd_f.length() * self.dt).sum();
+
+        (accelerations, neighbors, potential_energy, impulse)
+    }
+
+    pub fn recalculate_kinetic_energy(&mut self) {
+        self.energy.kinetic = self.particles
+            .iter_mut()
+            .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
+            .sum();
+
+        // update heat injection per time step
+        let current_temp = self.energy.kinetic / self.particles.len() as f32;
+        self.heat_injection_ammount = (self.target_temp - current_temp) * self.inject_rate;
+    }
+
+}
+
+// Plugin
+pub struct VDWSimulation {
+    resources: SimulationState
 }
 
 impl VDWSimulation {
@@ -235,47 +337,47 @@ impl VDWSimulation {
     // Make a new State
     // This function is only used by StatePrototype's compile method
     fn new(
+        particles: Vec<Particle>,
         bound: Boundary,
         grid: Grid,
         dt: f32,
         steps_per_frame: usize,
         ext_accel: Vec3,
-        particles: Vec<Particle>,
     ) -> Self {
+        
         Self {
-            bound,
-            grid,
-            dt,
-            steps_per_frame,
-            ext_accel,
+            resources: SimulationState {
+                particles,
+                bound,
+                grid,
 
-            particles,
+                bound_rate: 0.0,
+                target_temp: 0.0,
+                inject_rate: 0.0,
+                heat_injection_ammount: 0.0,
+                pressure_pinned: PressurePinned {
+                    is_pinned: false,
+                    at_value: 0.5
+                },
+
+                dt,
+                steps_per_frame,
+                ext_accel,
+
+                energy: Energy::default(),
+                pressure: Pressure::new(
+                    (Self::PRESSURE_SAMPLING_PERIOD / dt / steps_per_frame as f32)
+                        as usize,
+                    dt * steps_per_frame as f32,
+                )
+            }
         }
     }
 }
-
 impl Plugin for VDWSimulation {
     fn build(&self, app: &mut AppBuilder) {
-        app.insert_resource(self.bound)
-            .insert_resource(self.grid)
-            .insert_resource(Dt(self.dt))
-            .insert_resource(StepsPerFrame(self.steps_per_frame))
-            .insert_resource(ExtAccel(self.ext_accel))
-            .insert_resource(self.particles.clone())
-            .insert_resource(Pressure::new(
-                (Self::PRESSURE_SAMPLING_PERIOD / self.dt / self.steps_per_frame as f32)
-                    as usize,
-                self.dt * self.steps_per_frame as f32,
-            ))
-            .insert_resource(PressurePinned {
-                is_pinned: false,
-                at_value: 0.1
-            })
-            .insert_resource(TargetTemp(0.0))
-            .insert_resource(InjectRate(0.0))
-            .insert_resource(BoundRate(0.0))
-            .insert_resource(Energy::default()) // initialize for ui system
-            .insert_resource(EnergyHistory(VecDeque::from(vec![Energy::default(); 1000])))
+        app
+            .insert_resource(self.resources.clone())
             .add_startup_system(render_systems::setup_bounding_box.system())
             .add_startup_system(render_systems::setup_particles.system())
             .add_startup_system(render_systems::setup_camera.system())
