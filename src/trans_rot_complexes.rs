@@ -15,7 +15,7 @@ pub struct TRC {
 }
 
 impl TRC {
-    const IDENTITY: Self = Self {
+    pub const IDENTITY: Self = Self {
         translation: Vec3::ZERO,
         rotation: Quat::IDENTITY
     };
@@ -123,7 +123,7 @@ pub struct TRCInfintesimal {
 }
 
 impl TRCInfintesimal {
-    const ZERO: Self = Self {
+    pub const ZERO: Self = Self {
         translation: Vec3::ZERO,
         rotation: Vec3::ZERO
     };
