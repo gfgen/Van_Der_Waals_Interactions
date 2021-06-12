@@ -134,9 +134,7 @@ impl TRCInfintesimal {
             rotation
         }
     }
-}
 
-impl TRCInfintesimal {
     // integrate over dx
     pub fn integrate(&self, dx: f32) -> TRC {
         let rotation_length = self.rotation.length();
