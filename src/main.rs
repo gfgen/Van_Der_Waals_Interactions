@@ -11,6 +11,7 @@ extern crate ringbuffer as rb;
 mod bevy_flycam;
 mod ring_buffer;
 mod state;
+mod trans_rot_complex;
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
