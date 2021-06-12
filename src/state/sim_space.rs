@@ -24,7 +24,10 @@ impl Grid {
 
     // Calculate the interactions between particles using the grid approximation
     // Return (accelerations, potential energies, # of neighbors)
-    pub fn calculate_force(&self, particles: &Vec<TRC>) -> (Vec<TRCInfintesimal>, Vec<f32>, Vec<usize>) {
+    pub fn calculate_force(
+        &self,
+        particles: &Vec<TRC>,
+    ) -> (Vec<TRCInfintesimal>, Vec<f32>, Vec<usize>) {
         let (grid, particle_locations) = self.make_grid(particles);
         let (accelerations, (potential_energies, neighbors)) = particle_locations
             .par_iter()
@@ -45,7 +48,7 @@ impl Grid {
         &self,
         tpid: usize,                // target particle index
         loc: (usize, usize, usize), // target particle grid location
-        particles: &Vec<TRC>,      // Set of all particle positions
+        particles: &Vec<TRC>,       // Set of all particle positions
         grid: &Array3<Vec<usize>>,  // division grid
     ) -> (TRCInfintesimal, (f32, usize)) {
         let relevant_grid_points = self.generate_neighbor_grid_loc(loc, grid);
@@ -65,7 +68,7 @@ impl Grid {
             let range = self.unit_size * self.reach as f32;
 
             let (force, potential, neighbor) =
-                physics::vdw_interaction(target_particle, other_particle, range);
+                physics::particle_interaction(target_particle, other_particle, range);
 
             total_force += force;
             total_potential += potential;
@@ -105,7 +108,10 @@ impl Grid {
     // to be used internally
     fn make_grid(&self, ps: &Vec<TRC>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
         // get a list of positional indicies from the particles
-        let grid_locations: Vec<_> = ps.par_iter().map(|&p| self.find_grid_location(p.translation)).collect();
+        let grid_locations: Vec<_> = ps
+            .par_iter()
+            .map(|&p| self.find_grid_location(p.translation))
+            .collect();
 
         // find the smallest indexes to set the position of the origin
         let init_min = std::isize::MAX;

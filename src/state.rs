@@ -7,12 +7,12 @@ mod sim_systems;
 pub mod state_generator;
 mod ui_systems;
 
+use crate::trans_rot_complexes::*;
 use bevy::prelude::*;
 use error::*;
 use particle::*;
 use rayon::prelude::*;
 use sim_space::*;
-use crate::trans_rot_complexes::*;
 
 use crate::ring_buffer::RingBuffer;
 
@@ -38,7 +38,7 @@ impl SimulationPrototype {
         Self {
             bound: Boundary::new(),
 
-            grid_unit_size: 1.0,
+            grid_unit_size: 0.6,
             grid_reach: 1,
             dt: 0.001,
             steps_per_frame: 20,
@@ -344,8 +344,10 @@ impl SimulationState {
             .particles
             .iter_mut()
             .map(|particle| {
-                0.5 * particle.get_mass() * particle.get_vel().translation.length_squared() +
-                0.5 * particle.get_moment_inertia() * particle.get_vel().rotation.length_squared()
+                0.5 * particle.get_mass() * particle.get_vel().translation.length_squared()
+                    + 0.5
+                        * particle.get_moment_inertia()
+                        * particle.get_vel().rotation.length_squared()
             })
             .sum();
 

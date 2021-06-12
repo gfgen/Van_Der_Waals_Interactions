@@ -25,11 +25,15 @@ pub trait Initialize: Sized {
             pos = pos.min(bound.hi_corner());
             pos = pos.max(bound.lo_corner());
 
-            particles.push(Particle::new().set_pos_translation(pos.x, pos.y, pos.z).set_vel_translation(
-                rng.sample::<f32, _>(StandardNormal) * temp,
-                rng.sample::<f32, _>(StandardNormal) * temp,
-                rng.sample::<f32, _>(StandardNormal) * temp,
-            ));
+            particles.push(
+                Particle::new()
+                    .set_pos_translation(pos.x, pos.y, pos.z)
+                    .set_vel_translation(
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                    ),
+            );
         }
         self.set_particles(prune(particles))
     }
@@ -58,7 +62,7 @@ fn prune(particles: Vec<Particle>) -> Vec<Particle> {
             if rnorm == 0.0 {
                 continue;
             }
-            qual = qual && rnorm >= 0.15
+            qual = qual && rnorm >= 0.4
         }
         if qual {
             ret.push(p1.clone());
