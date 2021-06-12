@@ -6,7 +6,7 @@
 // Uses the Glam crate's Vec3 and Quat structs
 
 use bevy::math::prelude::*;
-use std::ops::{Add, AddAssign, Sub, SubAssign, Neg};
+use std::ops::{Add, AddAssign, Sub, SubAssign, Neg, Mul, MulAssign};
 
 #[derive(Clone, Copy)]
 pub struct TRC {
@@ -136,6 +136,18 @@ impl TRCInfintesimal {
     }
 }
 
+impl TRCInfintesimal {
+    // integrate over dx
+    pub fn integrate(&self, dx: f32) -> TRC {
+        let rotation_length = self.rotation.length();
+        let rotation_axis = self.rotation / rotation_length;
+        TRC {
+            translation: self.translation * dx,
+            rotation: Quat::from_axis_angle(rotation_axis, rotation_length * dx)
+        }
+    }
+}
+
 impl Add for TRCInfintesimal {
     type Output = Self;
 
@@ -176,6 +188,17 @@ impl Neg for TRCInfintesimal {
             translation: -self.translation,
             rotation: -self.rotation
         }  
+    }
+}
+
+impl Mul<f32> for TRCInfintesimal {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self {
+       Self {
+           translation: self.translation * rhs,
+           rotation: self.rotation * rhs
+       } 
     }
 }
 
