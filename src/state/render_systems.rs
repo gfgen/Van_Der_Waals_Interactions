@@ -16,7 +16,7 @@ pub fn update_particles_renders(
 ) {
     for ((mut trans, mut mat), particle) in particle_renders.iter_mut().zip(state.particles.iter())
     {
-        let pos = particle.get_pos();
+        let pos = particle.get_pos().translation;
         *trans = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
 
         if particle.neighbors > 3 {

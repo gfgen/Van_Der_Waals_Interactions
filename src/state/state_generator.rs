@@ -25,7 +25,7 @@ pub trait Initialize: Sized {
             pos = pos.min(bound.hi_corner());
             pos = pos.max(bound.lo_corner());
 
-            particles.push(Particle::new().set_pos(pos.x, pos.y, pos.z).set_vel(
+            particles.push(Particle::new().set_pos_translation(pos.x, pos.y, pos.z).set_vel_translation(
                 rng.sample::<f32, _>(StandardNormal) * temp,
                 rng.sample::<f32, _>(StandardNormal) * temp,
                 rng.sample::<f32, _>(StandardNormal) * temp,
@@ -47,13 +47,14 @@ impl Initialize for SimulationPrototype {
 }
 
 // Delete particles that are too close to each other
+// TODO: reimplement
 fn prune(particles: Vec<Particle>) -> Vec<Particle> {
     let mut ret: Vec<Particle> = vec![];
     for p1 in particles.iter() {
         let mut qual = true;
         for p2 in ret.iter() {
             let r = p1.get_pos() - p2.get_pos();
-            let rnorm = r.length();
+            let rnorm = r.translation.length();
             if rnorm == 0.0 {
                 continue;
             }

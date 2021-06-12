@@ -12,6 +12,7 @@ use error::*;
 use particle::*;
 use rayon::prelude::*;
 use sim_space::*;
+use crate::trans_rot_complexes::*;
 
 use crate::ring_buffer::RingBuffer;
 
@@ -139,7 +140,7 @@ impl SimulationPrototype {
         if !self
             .particles
             .iter()
-            .map(|x| self.bound.contains_position(x.get_pos()))
+            .map(|x| self.bound.contains_position(x.get_pos().translation))
             .fold(true, |acc, x| acc && x)
         {
             errors.push(ErrorKind::Particle);
@@ -301,7 +302,7 @@ impl SimulationState {
     // Return a list of acceleration correspond to each particle
     // Return the potential energy and pressure of the system
     // internal helper function
-    fn calculate_particle_acceleration(&mut self) -> (Vec<Vec3>, Vec<usize>, f32, f32) {
+    fn calculate_particle_acceleration(&mut self) -> (Vec<TRCInfintesimal>, Vec<usize>, f32, f32) {
         // Collect particle positions
         let particle_pos = self
             .particles
@@ -319,7 +320,10 @@ impl SimulationState {
             // @param bnd_f: force on particle by the bounding box
             // @param grd_f: force on particle by other particles as calculated through the grid
             .map(|(particle, &bnd_f, &grd_f)| {
-                (bnd_f + grd_f) / particle.get_mass() + self.ext_accel
+                let sum_force = bnd_f + grd_f;
+                let translation = (sum_force.translation / particle.get_mass()) + self.ext_accel;
+                let rotation = sum_force.rotation / particle.get_moment_inertia();
+                TRCInfintesimal::new(translation, rotation)
             })
             .collect();
 
@@ -327,18 +331,22 @@ impl SimulationState {
         let potential_energy: f32 = potential_energies.iter().sum();
         let impulse: f32 = bound_force
             .iter()
-            .map(|bnd_f| bnd_f.length() * self.dt)
+            .map(|bnd_f| bnd_f.translation.length() * self.dt)
             .sum();
 
         (accelerations, neighbors, potential_energy, impulse)
     }
 
     // Kinetic energy is cached in a variable, this function updates that cache
+    // TODO: reimplement
     pub fn recalculate_kinetic_energy(&mut self) {
         self.energy.kinetic = self
             .particles
             .iter_mut()
-            .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
+            .map(|particle| {
+                0.5 * particle.get_mass() * particle.get_vel().translation.length_squared() +
+                0.5 * particle.get_moment_inertia() * particle.get_vel().rotation.length_squared()
+            })
             .sum();
 
         // update heat injection per time step

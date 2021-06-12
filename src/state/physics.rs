@@ -1,19 +1,20 @@
 use bevy::prelude::Vec3;
+use crate::trans_rot_complexes::*;
 
 // this roughly determines how close the particle can approach each other before getting repelled
 const R0: f32 = 0.15;
 
 // calculate force and potential on position 1
-pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f32, usize) {
+pub fn vdw_interaction(pos_targ: TRC, pos_other: TRC, range: f32) -> (TRCInfintesimal, f32, usize) {
     let r = pos_targ - pos_other;
-    let r_norm_sqr = r.length_squared();
+    let r_norm_sqr = r.translation.length_squared();
 
     if r_norm_sqr > range.powi(2) {
-        return (Vec3::new(0.0, 0.0, 0.0), 0.0, 0);
+        return (TRCInfintesimal::ZERO, 0.0, 0);
     }
 
     // Calculate force
-    let r_unit = r / R0;
+    let r_unit = r.translation / R0;
     let r_unit2 = r_unit.length_squared();
     let r_unit6 = r_unit2.powi(3);
     let r_unit8 = r_unit2 * r_unit6;
@@ -40,5 +41,5 @@ pub fn vdw_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32) -> (Vec3, f3
         0
     };
 
-    (force, potential_adjusted, neighbor)
+    (TRCInfintesimal::new(force, Vec3::ZERO), potential_adjusted, neighbor)
 }
