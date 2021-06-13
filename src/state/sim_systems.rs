@@ -31,7 +31,7 @@ pub fn advance_simulation(mut state: ResMut<SimulationState>) {
         println!(
             "{}, {}",
             state.energy.kinetic + state.energy.potential,
-            state.energy.kinetic
+            state.energy.kinetic,
         );
     }
 }

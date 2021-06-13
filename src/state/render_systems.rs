@@ -16,8 +16,9 @@ pub fn update_particles_renders(
 ) {
     for ((mut trans, mut mat), particle) in particle_renders.iter_mut().zip(state.particles.iter())
     {
-        let pos = particle.get_pos().translation;
-        *trans = Transform::from_xyz(pos[0] as f32, pos[1] as f32, pos[2] as f32);
+        let pos = particle.get_pos();
+        trans.translation = pos.translation;
+        trans.rotation = pos.rotation;
 
         if particle.neighbors > 3 {
             *mat = particle_mats.blue.clone();
@@ -177,10 +178,7 @@ pub fn setup_particles(
         ..Default::default()
     });
 
-    let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere {
-        radius: 0.1,
-        subdivisions: 0,
-    }));
+    let sphere_mesh = meshes.add(Mesh::from(shape::Cube::new(0.05)));
 
     let n = state.particles.len();
     for _i in 0..n {
