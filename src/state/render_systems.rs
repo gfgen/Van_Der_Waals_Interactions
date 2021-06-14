@@ -2,6 +2,7 @@
 use super::*;
 use crate::bevy_flycam::{FlyCam, InputState};
 use bevy::render::pipeline::PrimitiveTopology;
+use bevy::prelude::PbrBundle;
 use itertools::iproduct;
 
 // Marker Component:
@@ -178,17 +179,43 @@ pub fn setup_particles(
         ..Default::default()
     });
 
-    let sphere_mesh = meshes.add(Mesh::from(shape::Cube::new(0.05)));
+    let red_mat = materials.add(StandardMaterial {
+        base_color: Color::PINK,
+        unlit: false,
+        ..Default::default()
+    });
+
+    let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere {
+        radius: 0.05,
+        subdivisions: 0
+    }));
+
+    let charge_position = [
+        Vec3::new(0.0, 0.5 * 0.15, 0.0),
+        Vec3::new(0.0, -0.5 * 0.15, 0.0),
+    ];
 
     let n = state.particles.len();
     for _i in 0..n {
         commands
             .spawn()
             .insert_bundle(PbrBundle {
-                mesh: sphere_mesh.clone(),
-                material: white_mat.clone(),
                 transform: Transform::from_translation(Vec3::ZERO),
                 ..Default::default()
+            })
+            .with_children(|parent| {
+                parent.spawn_bundle(PbrBundle {
+                    mesh: sphere_mesh.clone(),
+                    material: blue_mat.clone(),
+                    transform: Transform::from_translation(charge_position[0]),
+                    ..Default::default()
+                });
+                parent.spawn_bundle(PbrBundle {
+                    mesh: sphere_mesh.clone(),
+                    material: red_mat.clone(),
+                    transform: Transform::from_translation(charge_position[1]),
+                    ..Default::default()
+                });
             })
             .insert(IsParticle);
     }

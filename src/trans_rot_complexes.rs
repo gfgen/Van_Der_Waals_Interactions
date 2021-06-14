@@ -154,7 +154,7 @@ impl TRCInfintesimal {
 
         TRC {
             translation: self.translation * dx,
-            rotation
+            rotation,
         }
     }
 }

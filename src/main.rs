@@ -29,6 +29,7 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .compile()?;
 
     App::build()
+        .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
         .add_plugins(DefaultPlugins)
         .add_plugin(NoCameraPlayerPlugin)
         .add_plugin(vdw_simulation)

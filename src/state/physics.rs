@@ -5,14 +5,12 @@ use itertools::iproduct;
 // this roughly determines how close the particle can approach each other before getting repelled
 const R0: f32 = 0.15;
 
-
 // In this model a particle is made of smaller charged region
 pub fn particle_interaction(
     pos_targ: TRC,
     pos_other: TRC,
     range: f32,
 ) -> (TRCInfintesimal, f32, usize) {
-
     let mut total_potential = 0.0;
     let mut total_force = Vec3::ZERO;
     let mut total_torque = Vec3::ZERO;
@@ -44,12 +42,11 @@ pub fn particle_interaction(
     }
 
     // location of charged regions relative to center of mass of particle
-    const X_COORD: f32 = 1.0 * R0;
-    const Z_COORD: f32 = X_COORD / 1.29151789655; // tan(104.5 / 2.0) (degrees)
-    const Z_OFFSET: f32 = Z_COORD / 2.0;
-
-    let charge_position = [Vec3::new(X_COORD, 0.0, Z_COORD - Z_OFFSET), Vec3::new(-X_COORD, 0.0, Z_COORD - Z_OFFSET), Vec3::new(0.0, 0.0, -Z_OFFSET)];
-    let charge_charge = [-0.5, -0.5, 1.0];
+    let charge_position = [
+        Vec3::new(0.0, 0.5 * R0, 0.0),
+        Vec3::new(0.0, -0.5 * R0, 0.0),
+    ];
+    let charge_charge = [-1.0, 1.0];
 
     // Constructing interaction list
     let charge_targ = charge_position
@@ -61,7 +58,6 @@ pub fn particle_interaction(
         .map(|&charge_pos| pos_other.process_relative_position(charge_pos))
         .zip(charge_charge.iter());
     let interaction_list = iproduct!(charge_targ, charge_other);
-
 
     // Iterate through all combination of  charge interactions
     for ((p_targ, c_targ), (p_other, c_other)) in interaction_list {
@@ -97,30 +93,32 @@ fn charge_interaction(pos_targ: Vec3, pos_other: Vec3, range: f32, sign: f32) ->
     }
 
     let interaction_scale = R0 / 1.0;
-    let interaction_intensity = 80.0;
-    let repulsion_intensity = 0.3;
+    let interaction_intensity = 40.0;
+    let repulsion_intensity = 0.1;
     // Calculate force
     let r_unit = r / interaction_scale;
     let r_unit2 = r_unit.length_squared();
+    let r_unit4 = r_unit2.powi(2);
     let r_unit6 = r_unit2.powi(3);
     let r_unit8 = r_unit2 * r_unit6;
     let r_unit12 = r_unit6.powi(2);
     let r_unit14 = r_unit6 * r_unit8;
 
-    let mut force = sign * interaction_intensity / r_unit8 * r_unit;
+    let mut force = sign * interaction_intensity / r_unit6 * r_unit;
     force += interaction_intensity * repulsion_intensity / r_unit14 * r_unit;
 
     // calculate potential
     let range_unit = range / interaction_scale;
+    let range_unit4 = range_unit.powi(4);
     let range_unit6 = range_unit.powi(6);
     let range_unit12 = range_unit6.powi(2);
 
-
     // this is the potential energy between two non-interacting particles need to shift this point to zero
-    let mut free_potential = sign * interaction_intensity / range_unit6 * interaction_scale / 6.0;
-    free_potential += interaction_intensity * repulsion_intensity / range_unit12 * interaction_scale / 12.0;
+    let mut free_potential = sign * interaction_intensity / range_unit4 * interaction_scale / 4.0;
+    free_potential +=
+        interaction_intensity * repulsion_intensity / range_unit12 * interaction_scale / 12.0;
 
-    let mut potential = sign * interaction_intensity / r_unit6 * interaction_scale / 6.0;
+    let mut potential = sign * interaction_intensity / r_unit4 * interaction_scale / 4.0;
     potential += interaction_intensity * repulsion_intensity / r_unit12 * interaction_scale / 12.0;
 
     let potential_adjusted = (potential - free_potential) / 2.0;

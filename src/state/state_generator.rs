@@ -32,6 +32,11 @@ pub trait Initialize: Sized {
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
+                    )
+                    .set_vel_rotation(
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
                     ),
             );
         }
