@@ -38,7 +38,7 @@ impl SimulationPrototype {
         Self {
             bound: Boundary::new(),
 
-            grid_unit_size: 0.6,
+            grid_unit_size: 1.0,
             grid_reach: 1,
             dt: 0.001,
             steps_per_frame: 20,
