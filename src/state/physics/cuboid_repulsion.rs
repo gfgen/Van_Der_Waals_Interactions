@@ -24,7 +24,7 @@ pub fn particle_interaction(
     //      represents relative orientation of the two particles
 
     if r_norm_sqr < range.powi(2) {
-        let interaction_intensity = 32.0;
+        let interaction_intensity = 24.0;
 
         let r_scaled = r_trans / R0;
         let r_scaled2 = r_scaled.length_squared();
@@ -37,8 +37,8 @@ pub fn particle_interaction(
         total_force -= interaction_intensity / r_scaled8 * r_scaled;
 
         // repulsion
-        let repulsion_intensity = 0.15;
-        let cuboid_intensity = 1.0; // define the depth of the energy well of the cuboid shape
+        let repulsion_intensity = 0.3;
+        let cuboid_intensity = 0.8; // define the depth of the energy well of the cuboid shape
 
 
         // repulsion based on relative-position and orientation of other
@@ -119,6 +119,9 @@ pub fn particle_interaction(
         d_cuboid_factor_targ_dr = pos_targ.rotation * d_cuboid_factor_targ_dr;
  
         // calculating gradient d/drotation of cuboid_factor
+        // WARNING:
+        //      questionable correctness
+        //      works well enough
         let mut max_axis = Vec3::ZERO;
         max_axis[max_index] = 1.0 * sign;
 
@@ -129,6 +132,8 @@ pub fn particle_interaction(
         let mut d_cuboid_factor_targ_drot = axis * angle;
         d_cuboid_factor_targ_drot *= -1.0;
 
+
+        // calculate force
         total_force += interaction_intensity
             * repulsion_intensity
             * sigmoid(remap_cuboid(cuboid_factor_targ), cuboid_intensity)
@@ -206,11 +211,11 @@ pub fn particle_interaction(
 // to be in the right range for the logistic curve
 // and its derivative
 fn remap_cuboid(x: f32) -> f32 {
-    -10.0 * (x - 0.9)
+    -80.0 * (x - 0.97)
 }
 
 fn d_remap_cuboid(_x: f32) -> f32 {
-    -10.0
+    -80.0
 }
 
 // sigmoid and its derivative

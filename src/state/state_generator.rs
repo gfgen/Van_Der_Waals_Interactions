@@ -34,12 +34,17 @@ pub trait Initialize: Sized {
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                     ) 
-/*                     .set_vel_rotation(
+                    .set_vel_rotation(
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
-                    )  */
-                    .set_pos_rotation(Quat::from_axis_angle(Vec3::new(1.0, 1.0, 1.0).normalize(), 1.0))
+                    ) 
+                    .set_pos_rotation(Quat::from_xyzw(
+                        rng.sample::<f32, _>(StandardNormal),
+                        rng.sample::<f32, _>(StandardNormal),
+                        rng.sample::<f32, _>(StandardNormal),
+                        rng.sample::<f32, _>(StandardNormal),
+                    ).normalize())
             );
         }
         self.set_particles(prune(particles))
