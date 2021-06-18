@@ -38,7 +38,7 @@ pub fn particle_interaction(
 
         // repulsion
         let repulsion_intensity = 0.3;
-        let cuboid_intensity = 0.8; // define the depth of the energy well of the cuboid shape
+        let cuboid_intensity = 1.0; // define the depth of the energy well of the cuboid shape
 
 
         // repulsion based on relative-position and orientation of other
