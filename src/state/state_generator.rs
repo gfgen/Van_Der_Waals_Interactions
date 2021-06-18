@@ -69,7 +69,7 @@ fn prune(particles: Vec<Particle>) -> Vec<Particle> {
             if rnorm == 0.0 {
                 continue;
             }
-            qual = qual && rnorm >= 0.15
+            qual = qual && rnorm >= 0.25
         }
         if qual {
             ret.push(p1.clone());
