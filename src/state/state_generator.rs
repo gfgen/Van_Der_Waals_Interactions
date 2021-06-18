@@ -4,6 +4,7 @@ use super::SimulationPrototype;
 use bevy::prelude::Vec3;
 use rand::Rng;
 use rand_distr::StandardNormal;
+use bevy::prelude::Quat;
 
 pub trait Initialize: Sized {
     fn get_bound(&self) -> Boundary;
@@ -32,11 +33,13 @@ pub trait Initialize: Sized {
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
-                    ), /*                     .set_vel_rotation(
-                           rng.sample::<f32, _>(StandardNormal) * temp,
-                           rng.sample::<f32, _>(StandardNormal) * temp,
-                           rng.sample::<f32, _>(StandardNormal) * temp,
-                       ) */
+                    ) 
+/*                     .set_vel_rotation(
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                    )  */
+                    .set_pos_rotation(Quat::from_axis_angle(Vec3::new(1.0, 1.0, 1.0).normalize(), 1.0))
             );
         }
         self.set_particles(prune(particles))
@@ -66,7 +69,7 @@ fn prune(particles: Vec<Particle>) -> Vec<Particle> {
             if rnorm == 0.0 {
                 continue;
             }
-            qual = qual && rnorm >= 0.4
+            qual = qual && rnorm >= 0.15
         }
         if qual {
             ret.push(p1.clone());
