@@ -179,11 +179,6 @@ pub fn setup_particles(
         ..Default::default()
     });
 
-    let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere {
-        radius: 0.02,
-        subdivisions: 0,
-    }));
-
     let cube_mesh = meshes.add(Mesh::from(shape::Cube::new(0.066)));
 
     let n = state.particles.len();
