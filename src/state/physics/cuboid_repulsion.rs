@@ -62,16 +62,16 @@ pub fn particle_interaction(
             }
         }
 
-        let mut d_cuboid_factor_other = Vec3::ZERO;
+        let mut d_cuboid_factor_d_ori_other = Vec3::ZERO;
         for i in 0..3 {
             if i == max_index {
-                d_cuboid_factor_other[i] = 1.0 / r_orientation_len - r_orientation[i].powi(2) / r_orientation_len.powi(3);
+                d_cuboid_factor_d_ori_other[i] = 1.0 / r_orientation_len - r_orientation[i].powi(2) / r_orientation_len.powi(3);
             } else {
-                d_cuboid_factor_other[i] = -r_orientation[i] * r_orientation[max_index] / r_orientation_len.powi(3);
+                d_cuboid_factor_d_ori_other[i] = -r_orientation[i] * r_orientation[max_index] / r_orientation_len.powi(3);
             }
         }
-        d_cuboid_factor_other *= sign;
-        d_cuboid_factor_other = pos_other.rotation * d_cuboid_factor_other;
+        d_cuboid_factor_d_ori_other *= sign;
+        let d_cuboid_factor_dr_other = pos_other.rotation * d_cuboid_factor_d_ori_other;
 
 
         total_force += interaction_intensity
@@ -83,7 +83,7 @@ pub fn particle_interaction(
             * R0
             * d_sigmoid(remap_cuboid(cuboid_factor_other), cuboid_intensity)
             * d_remap_cuboid(cuboid_factor_other)
-            * d_cuboid_factor_other;
+            * d_cuboid_factor_dr_other;
 
         // repulsion based on relative-position and orientation of target
         let r_orientation = pos_targ.rotation.inverse() * (-r_trans);
@@ -106,31 +106,35 @@ pub fn particle_interaction(
             }
         }
 
-        let mut d_cuboid_factor_targ_dr = Vec3::ZERO;
+        let mut d_cuboid_factor_d_ori_targ = Vec3::ZERO;
         for i in 0..3 {
             if i == max_index {
-                d_cuboid_factor_targ_dr[i] = 1.0 / r_orientation_len - r_orientation[i].powi(2) / r_orientation_len.powi(3);
+                d_cuboid_factor_d_ori_targ[i] = 1.0 / r_orientation_len - r_orientation[i].powi(2) / r_orientation_len.powi(3);
             } else {
-                d_cuboid_factor_targ_dr[i] = -r_orientation[i] * r_orientation[max_index] / r_orientation_len.powi(3);
+                d_cuboid_factor_d_ori_targ[i] = -r_orientation[i] * r_orientation[max_index] / r_orientation_len.powi(3);
             }
         }
-        d_cuboid_factor_targ_dr *= -1.0;
-        d_cuboid_factor_targ_dr *= sign;
-        d_cuboid_factor_targ_dr = pos_targ.rotation * d_cuboid_factor_targ_dr;
+        d_cuboid_factor_d_ori_targ *= sign;
+        let d_cuboid_factor_dr_targ = -(pos_targ.rotation * d_cuboid_factor_d_ori_targ);
  
         // calculating gradient d/drotation of cuboid_factor
         // WARNING:
         //      questionable correctness
-        //      works well enough
-        let mut max_axis = Vec3::ZERO;
-        max_axis[max_index] = 1.0 * sign;
+        //      works well enough (not really)
+        let mut max_basis = Vec3::ZERO;
+        max_basis[max_index] = 1.0 * sign;
 
-        let mut delta_cuboid_factor_targ_delta_rot = Quat::from_rotation_arc(r_orientation_unit, max_axis);
-        delta_cuboid_factor_targ_delta_rot = pos_targ.rotation * delta_cuboid_factor_targ_delta_rot * pos_targ.rotation.inverse();
+        let mut delta_cuboid_factor_targ_delta_rot = Quat::from_rotation_arc(r_orientation_unit, max_basis);
 
-        let (axis, angle) = delta_cuboid_factor_targ_delta_rot.to_axis_angle();
-        let mut d_cuboid_factor_targ_drot = axis * angle;
-        d_cuboid_factor_targ_drot *= -1.0;
+        let (axis, _) = delta_cuboid_factor_targ_delta_rot.to_axis_angle();
+        let r_ori_ortho_to_axis = r_orientation - r_orientation.dot(axis) * axis;
+        let omega = d_cuboid_factor_d_ori_targ.length() / r_ori_ortho_to_axis.length();
+
+        delta_cuboid_factor_targ_delta_rot = pos_targ.rotation * delta_cuboid_factor_targ_delta_rot.inverse() * pos_targ.rotation.inverse();
+        let (axis, _) = delta_cuboid_factor_targ_delta_rot.to_axis_angle();
+
+        let mut d_cuboid_factor_drot_targ = omega * axis;
+        // d_cuboid_factor_drot_targ *= -1.0;
 
 
         // calculate force
@@ -143,12 +147,12 @@ pub fn particle_interaction(
             * R0
             * d_sigmoid(remap_cuboid(cuboid_factor_targ), cuboid_intensity)
             * d_remap_cuboid(cuboid_factor_targ)
-            * d_cuboid_factor_targ_dr;
+            * d_cuboid_factor_dr_targ;
         total_torque -= interaction_intensity * repulsion_intensity / r_scaled12 / 12.0
             * R0
             * d_sigmoid(remap_cuboid(cuboid_factor_targ), cuboid_intensity)
             * d_remap_cuboid(cuboid_factor_targ)
-            * d_cuboid_factor_targ_drot;
+            * d_cuboid_factor_drot_targ;
 
         
             
@@ -211,7 +215,7 @@ pub fn particle_interaction(
 // to be in the right range for the logistic curve
 // and its derivative
 fn remap_cuboid(x: f32) -> f32 {
-    -80.0 * (x - 0.97)
+    -80.0 * (x - 0.98)
 }
 
 fn d_remap_cuboid(_x: f32) -> f32 {

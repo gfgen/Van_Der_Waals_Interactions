@@ -1,5 +1,5 @@
 pub mod error;
-mod particle;
+pub mod particle;
 mod physics;
 mod render_systems;
 mod sim_space;
