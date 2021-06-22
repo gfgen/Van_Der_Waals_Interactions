@@ -19,12 +19,6 @@ use bevy_flycam::NoCameraPlayerPlugin;
 use state::state_generator::Initialize;
 
 fn main() -> Result<(), state::error::InvalidParamError> {
-    let particle1 = state::particle::Particle::new()
-        .set_pos_translation(2.0, 2.0, 2.0);
-    let particle2 = state::particle::Particle::new()
-        .set_pos_translation(2.06, 2.08, 2.1);
-    let particles = vec![particle1, particle2];
-
     let vdw_simulation = state::SimulationPrototype::new()
         .set_dt(0.001)
         .set_steps_per_frame(20)
@@ -33,7 +27,6 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_bound_z(10.0)
         .initialize_spherical_cloud(400, 2.0, 1.0)
 
-        // .set_particles(particles)
         .compile()?;
 
     App::build()

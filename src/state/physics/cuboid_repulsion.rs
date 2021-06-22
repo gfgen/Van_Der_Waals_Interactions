@@ -119,9 +119,8 @@ pub fn particle_interaction(
  
         // calculating gradient d/drotation of cuboid_factor
         // WARNING:
-        //      questionable correctness
-        //      works well enough (not really)
-        let d_cuboid_factor_drot_targ = -1.0 * d_cuboid_factor_d_rotation(pos_targ.rotation.inverse(), -r_trans, d_cuboid_factor_d_ori_targ);
+        //      somehow works, needs inspection
+        let d_cuboid_factor_drot_targ = -r_trans.cross(d_cuboid_factor_dr_targ);
 
 
         // calculate force
@@ -202,11 +201,11 @@ pub fn particle_interaction(
 // to be in the right range for the logistic curve
 // and its derivative
 fn remap_cuboid(x: f32) -> f32 {
-    -80.0 * (x - 0.98)
+    -50.0 * (x - 0.98)
 }
 
 fn d_remap_cuboid(_x: f32) -> f32 {
-    -80.0
+    -50.0
 }
 
 // sigmoid and its derivative
@@ -217,64 +216,4 @@ fn sigmoid(x: f32, depth: f32) -> f32 {
 fn d_sigmoid(x: f32, depth: f32) -> f32 {
     let exp_x = x.exp();
     depth * exp_x / (1.0 + exp_x).powi(2)
-}
-
-// function to calculate d/d_rotation
-// TODO: optimize
-fn d_cuboid_factor_d_rotation(rotation: Quat, r_trans: Vec3, d_cuboid_factor_d_ori: Vec3) -> Vec3 {
-    let (axis, angle) = rotation.to_axis_angle();
-    let r_axis = r_trans.dot(axis) * axis;
-    let r_ortho_x = r_trans - r_axis;
-    let r_ortho_y = axis.cross(r_ortho_x);
-
-    let mut dr_axis_d_axis = [Vec3::ZERO; 3];
-    for i in 0..3 {
-        dr_axis_d_axis[i] = r_trans * axis[i];
-        dr_axis_d_axis[i][i] *= 2.0;
-    }
-
-    let mut dr_ortho_x_d_axis = [Vec3::ZERO; 3];
-    for i in 0..3 {
-        dr_ortho_x_d_axis[i] = -dr_axis_d_axis[i];
-    }
-
-    let mut dr_ortho_y_d_axis = [Vec3::ZERO; 3];
-    let extractors = [Vec3::X, Vec3::Y, Vec3::Z];
-    for i in 0..3 {
-        let j = (i + 1) % 3;
-        let k = (i + 2) % 3;
-        dr_ortho_y_d_axis[i] = 
-            extractors[j] * r_ortho_x[k] 
-            - extractors[k] * r_ortho_x[j]
-            + axis[j] * dr_ortho_x_d_axis[k]
-            - axis[k] * dr_ortho_x_d_axis[j]
-    }
-
-    let mut dr_ortho_rota_d_axis = [Vec3::ZERO; 3];
-    for i in 0..3 {
-        dr_ortho_rota_d_axis[i] = dr_ortho_x_d_axis[i] * angle.cos()
-            + dr_ortho_y_d_axis[i] * angle.sin();
-    }
-
-    let mut d_ori_d_axis = [Vec3::ZERO; 3];
-    for i in 0..3 {
-        d_ori_d_axis[i] = dr_axis_d_axis[i] + dr_ortho_rota_d_axis[i];
-    }
-
-    let mut d_ori_d_angle = Vec3::ZERO;
-    for i in 0..3 {
-        d_ori_d_angle[i] = -r_ortho_x[i] * angle.sin()
-            + r_ortho_y[i] * angle.cos();
-    }
-
-    let d_ori_d_axis = Mat3::from_cols(
-        d_ori_d_axis[0],
-        d_ori_d_axis[1],
-        d_ori_d_axis[2]
-    );
-
-    let d_cuboid_factor_d_axis = d_ori_d_axis * d_cuboid_factor_d_ori;
-    let d_cuboid_factor_d_angle = d_ori_d_angle.dot(d_cuboid_factor_d_ori) * axis;
-
-    d_cuboid_factor_d_axis + d_cuboid_factor_d_angle
 }
