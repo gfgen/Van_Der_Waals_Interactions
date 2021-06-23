@@ -1,10 +1,10 @@
 use super::particle::Particle;
 use super::sim_space::Boundary;
 use super::SimulationPrototype;
+use bevy::prelude::Quat;
 use bevy::prelude::Vec3;
 use rand::Rng;
 use rand_distr::StandardNormal;
-use bevy::prelude::Quat;
 
 pub trait Initialize: Sized {
     fn get_bound(&self) -> Boundary;
@@ -33,18 +33,21 @@ pub trait Initialize: Sized {
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
-                    ) 
+                    )
                     .set_vel_rotation(
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
-                    ) 
-                    .set_pos_rotation(Quat::from_xyzw(
-                        rng.sample::<f32, _>(StandardNormal),
-                        rng.sample::<f32, _>(StandardNormal),
-                        rng.sample::<f32, _>(StandardNormal),
-                        rng.sample::<f32, _>(StandardNormal),
-                    ).normalize())
+                    )
+                    .set_pos_rotation(
+                        Quat::from_xyzw(
+                            rng.sample::<f32, _>(StandardNormal),
+                            rng.sample::<f32, _>(StandardNormal),
+                            rng.sample::<f32, _>(StandardNormal),
+                            rng.sample::<f32, _>(StandardNormal),
+                        )
+                        .normalize(),
+                    ),
             );
         }
         self.set_particles(prune(particles))
