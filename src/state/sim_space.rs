@@ -175,7 +175,7 @@ pub struct Boundary {
 }
 
 impl Boundary {
-    const MIN_LEN: f32 = 2.0; // Minimum length of each side of the box
+    const MIN_LEN: f32 = 0.3; // Minimum length of each side of the box
     const DEFLECT_STR: f32 = 10000.0;
 
     // Set up a boundary with default config
