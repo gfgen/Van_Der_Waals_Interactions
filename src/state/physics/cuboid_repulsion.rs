@@ -25,7 +25,7 @@ pub fn particle_interaction(
 
     if r_norm_sqr < range.powi(2) {
         let interaction_intensity = 24.0;
-        let repulsion_intensity = 0.3;
+        let repulsion_intensity = 0.6;
 
         let r_scaled = r_trans / R0;
         let r_scaled2 = r_scaled.length_squared();
@@ -34,10 +34,11 @@ pub fn particle_interaction(
         let r_scaled12 = r_scaled6.powi(2);
         let r_scaled14 = r_scaled6 * r_scaled8;
 
-        // attraction
-        total_force -= interaction_intensity / r_scaled8 * r_scaled;
 
+        ///////////////////////////////////////////////////////////////////
         // repulsion based on relative-position and orientation of other
+        //
+
         let r_orientation = pos_other.rotation.inverse() * r_trans;
         let r_orientation_len = r_orientation.length();
         let r_orientation_unit = r_orientation / r_orientation_len;
@@ -69,7 +70,19 @@ pub fn particle_interaction(
         d_cuboid_factor_d_ori_other *= sign;
         let d_cuboid_factor_dr_other = pos_other.rotation * d_cuboid_factor_d_ori_other;
 
+        // force calculation
 
+        // attraction
+        total_force -= interaction_intensity 
+            * cuboid_factor_function_attraction(cuboid_factor_other)
+            / r_scaled8 
+            * r_scaled;
+        total_force += interaction_intensity / r_scaled6 / 6.0
+            * R0
+            * d_cuboid_factor_function_attraction(cuboid_factor_other)
+            * d_cuboid_factor_dr_other;
+
+        // repulsion
         total_force += interaction_intensity
             * repulsion_intensity
             * cuboid_factor_function_repulsion(cuboid_factor_other)
@@ -118,7 +131,23 @@ pub fn particle_interaction(
         let d_cuboid_factor_drot_targ = -r_trans.cross(d_cuboid_factor_dr_targ);
 
 
-        // calculate force
+        // force calculation
+
+        // attraction
+        total_force -= interaction_intensity 
+            * cuboid_factor_function_attraction(cuboid_factor_targ)
+            / r_scaled8 
+            * r_scaled;
+        total_force += interaction_intensity / r_scaled6 / 6.0
+            * R0
+            * d_cuboid_factor_function_attraction(cuboid_factor_targ)
+            * d_cuboid_factor_dr_targ;
+        total_torque += interaction_intensity / r_scaled6 / 6.0
+            * R0
+            * d_cuboid_factor_function_attraction(cuboid_factor_targ)
+            * d_cuboid_factor_drot_targ;
+
+        // repulsion
         total_force += interaction_intensity
             * repulsion_intensity
             * cuboid_factor_function_repulsion(cuboid_factor_targ)
@@ -143,12 +172,22 @@ pub fn particle_interaction(
         let range_scaled12 = range_scaled6.powi(2);
 
         // this is the potential energy between two non-interacting particles need to shift this point to zero
-        let mut free_potential = -interaction_intensity / range_scaled6 / 6.0 * R0;
+        let mut free_potential = -interaction_intensity 
+            * cuboid_factor_function_attraction(cuboid_factor_other)
+            / range_scaled6 
+            / 6.0 
+            * R0;
         free_potential += interaction_intensity
             * repulsion_intensity
             * cuboid_factor_function_repulsion(cuboid_factor_other)
             / range_scaled12
             / 12.0
+            * R0;
+
+        free_potential -= interaction_intensity 
+            * cuboid_factor_function_attraction(cuboid_factor_targ)
+            / range_scaled6 
+            / 6.0 
             * R0;
         free_potential += interaction_intensity
             * repulsion_intensity
@@ -157,12 +196,22 @@ pub fn particle_interaction(
             / 12.0
             * R0;
 
-        let mut potential = -interaction_intensity / r_scaled6 / 6.0 * R0;
+        let mut potential = -interaction_intensity 
+            * cuboid_factor_function_attraction(cuboid_factor_other)
+            / r_scaled6 
+            / 6.0 
+            * R0;
         potential += interaction_intensity
             * repulsion_intensity
             * cuboid_factor_function_repulsion(cuboid_factor_other)
             / r_scaled12
             / 12.0
+            * R0;
+
+        potential -= interaction_intensity 
+            * cuboid_factor_function_attraction(cuboid_factor_targ)
+            / r_scaled6 
+            / 6.0 
             * R0;
         potential += interaction_intensity
             * repulsion_intensity
@@ -198,6 +247,13 @@ fn d_cuboid_factor_function_repulsion(cuboid_factor: f32) -> f32 {
     let cuboid_deepness = 1.0;
     d_sigmoid(remap_cuboid(cuboid_factor), cuboid_deepness)
         * d_remap_cuboid(cuboid_factor)
+}
+
+fn cuboid_factor_function_attraction(cuboid_factor: f32) -> f32 {
+    1.0
+}
+fn d_cuboid_factor_function_attraction(cuboid_factor: f32) -> f32 {
+    0.0
 }
 
 
