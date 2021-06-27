@@ -62,6 +62,8 @@ pub fn update_bounding_box_renders(
             *mesh = line_z.clone();
             trans.translation = Vec3::new(bound.x * mult1, bound.y * mult2, 0.0);
         }
+
+        trans.translation += bound.lo_corner();
     }
 }
 //////////////////////////////////////////

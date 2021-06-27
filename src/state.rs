@@ -66,15 +66,18 @@ impl SimulationPrototype {
     // Bound
     pub fn set_bound_x(mut self, val: f32) -> Self {
         self.bound.x = val;
+        self.bound.lo_corner.x = -val / 2.0;
         self
     }
 
     pub fn set_bound_y(mut self, val: f32) -> Self {
         self.bound.y = val;
+        self.bound.lo_corner.y = -val / 2.0;
         self
     }
     pub fn set_bound_z(mut self, val: f32) -> Self {
         self.bound.z = val;
+        self.bound.lo_corner.z = -val / 2.0;
         self
     }
 

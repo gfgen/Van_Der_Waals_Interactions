@@ -169,18 +169,20 @@ impl Grid {
 //
 #[derive(Clone, Copy)]
 pub struct Boundary {
+    pub lo_corner: Vec3,
     pub x: f32,
     pub y: f32,
     pub z: f32,
 }
 
 impl Boundary {
-    const MIN_LEN: f32 = 2.0; // Minimum length of each side of the box
+    const MIN_LEN: f32 = 0.5; // Minimum length of each side of the box
     const DEFLECT_STR: f32 = 10000.0;
 
     // Set up a boundary with default config
     pub fn new() -> Self {
         Self {
+            lo_corner: Vec3::new(-2.5, -2.5, -2.5),
             x: 5.0,
             y: 5.0,
             z: 5.0,
@@ -199,12 +201,12 @@ impl Boundary {
 
     // Coordinates of the corner with higher values
     pub fn hi_corner(&self) -> Vec3 {
-        Vec3::new(self.x, self.y, self.z)
+        self.lo_corner + Vec3::new(self.x, self.y, self.z)
     }
 
     // Coordinates of the corner with lower values
     pub fn lo_corner(&self) -> Vec3 {
-        Vec3::ZERO
+        self.lo_corner
     }
 
     // Coordinates of center of box
@@ -237,6 +239,7 @@ impl Boundary {
         self.x = (self.x + rate * dt).max(Boundary::MIN_LEN);
         self.y = (self.y + rate * dt).max(Boundary::MIN_LEN);
         self.z = (self.z + rate * dt).max(Boundary::MIN_LEN);
+        self.lo_corner = -Vec3::new(self.x, self.y, self.z) / 2.0;
     }
     ///////////////////////////////////////
     // Internal Utilities
