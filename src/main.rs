@@ -24,7 +24,7 @@ fn main() -> Result<(), state::error::InvalidParamError> {
         .set_bound_z(15.0)
         .set_dt(0.001)
         .set_steps_per_frame(20)
-        .initialize_spherical_cloud(2000, 1.0, 1.4)
+        .initialize_spherical_cloud(1000, 1.0, 1.4)
         .compile()?;
 
     App::build()
