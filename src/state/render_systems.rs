@@ -209,7 +209,7 @@ pub fn setup_particles(
     commands.insert_resource(ParticleMats {
         white: white_mat,
         blue: blue_mat,
-        red: red_mat
+        red: red_mat,
     })
 }
 

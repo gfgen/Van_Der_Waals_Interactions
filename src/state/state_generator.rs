@@ -25,11 +25,15 @@ pub trait Initialize: Sized {
             pos = pos.min(bound.hi_corner());
             pos = pos.max(bound.lo_corner());
 
-            particles.push(Particle::new(rng.gen_bool(0.5)).set_pos(pos.x, pos.y, pos.z).set_vel(
-                rng.sample::<f32, _>(StandardNormal) * temp,
-                rng.sample::<f32, _>(StandardNormal) * temp,
-                rng.sample::<f32, _>(StandardNormal) * temp,
-            ));
+            particles.push(
+                Particle::new(rng.gen_bool(0.5))
+                    .set_pos(pos.x, pos.y, pos.z)
+                    .set_vel(
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                        rng.sample::<f32, _>(StandardNormal) * temp,
+                    ),
+            );
         }
         self.set_particles(prune(particles))
     }

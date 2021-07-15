@@ -62,8 +62,7 @@ impl<T> RingBuffer<T> {
     pub fn elem(&self, index: usize) -> Option<&T> {
         if index < self.len() {
             Some(&self.data[index])
-        }
-        else {
+        } else {
             None
         }
     }

@@ -1,5 +1,5 @@
-use super::physics;
 use super::particle::Particle;
+use super::physics;
 use bevy::prelude::Vec3;
 use itertools::iproduct;
 use ndarray::Array3;
@@ -45,7 +45,7 @@ impl Grid {
         &self,
         tpid: usize,                // target particle index
         loc: (usize, usize, usize), // target particle grid location
-        particles: &Vec<Particle>,      // Set of all particle positions
+        particles: &Vec<Particle>,  // Set of all particle positions
         grid: &Array3<Vec<usize>>,  // division grid
     ) -> (Vec3, (f32, usize)) {
         let relevant_grid_points = self.generate_neighbor_grid_loc(loc, grid);
@@ -105,7 +105,10 @@ impl Grid {
     // to be used internally
     fn make_grid(&self, ps: &Vec<Particle>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
         // get a list of positional indicies from the particles
-        let grid_locations: Vec<_> = ps.par_iter().map(|p| self.find_grid_location(p.get_pos())).collect();
+        let grid_locations: Vec<_> = ps
+            .par_iter()
+            .map(|p| self.find_grid_location(p.get_pos()))
+            .collect();
 
         // find the smallest indexes to set the position of the origin
         let init_min = std::isize::MAX;

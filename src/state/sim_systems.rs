@@ -28,7 +28,7 @@ pub fn advance_simulation(mut state: ResMut<SimulationState>) {
         let bound_rate = bound_rate.min(bound_size * 0.01);
 
         state.bound_rate = bound_rate;
-    } 
+    }
     // Reset bound_rate on toggle off
     else if state.pressure_pinned.previous_state {
         state.bound_rate = 0.0;

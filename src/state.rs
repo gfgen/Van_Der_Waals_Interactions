@@ -311,7 +311,8 @@ impl SimulationState {
 
         // Calculate forces
         let bound_force = self.bound.calculate_force(&particle_pos);
-        let (grid_force, potential_energies, neighbors) = self.grid.calculate_force(&self.particles);
+        let (grid_force, potential_energies, neighbors) =
+            self.grid.calculate_force(&self.particles);
 
         // Sum up accelerations
         let accelerations = (&self.particles, &bound_force, &grid_force)

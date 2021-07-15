@@ -1,5 +1,5 @@
-use bevy::prelude::Vec3;
 use crate::state::particle::Particle;
+use bevy::prelude::Vec3;
 
 // this roughly determines how close the particle can approach each other before getting repelled
 const R0: f32 = 0.15;
@@ -38,7 +38,8 @@ pub fn vdw_interaction(targ: &Particle, other: &Particle, range: f32) -> (Vec3, 
     // this is the potential energy between two non-interacting particles need to shift this point to zero
     let mut potential_adjusted = 0.0;
     if !targ.inert && !other.inert {
-        let mut free_potential = interaction_intensity * repulsion_intensity / 12.0 / range_unit12 * R0;
+        let mut free_potential =
+            interaction_intensity * repulsion_intensity / 12.0 / range_unit12 * R0;
         free_potential -= interaction_intensity / 6.0 / range_unit6 * R0;
 
         let mut potential = interaction_intensity * repulsion_intensity / 12.0 / r_unit12 * R0;
