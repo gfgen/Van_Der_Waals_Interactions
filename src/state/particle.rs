@@ -4,6 +4,7 @@ use bevy::prelude::Vec3;
 #[derive(Clone)]
 pub struct Particle {
     pub neighbors: usize,
+    pub inert: bool,
     mass: f32,
     pos: Vec3,
     vel: Vec3,
@@ -12,9 +13,10 @@ pub struct Particle {
 impl Particle {
     // Create a particle with mass = 1, at the origin, and resting
     // Parameters can be set using the corresponding builders
-    pub fn new() -> Self {
+    pub fn new(inert: bool) -> Self {
         Self {
             neighbors: 0,
+            inert,
             mass: 1.0,
             pos: Vec3::new(0.0, 0.0, 0.0),
             vel: Vec3::new(0.0, 0.0, 0.0),
