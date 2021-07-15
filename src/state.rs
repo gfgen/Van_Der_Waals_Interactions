@@ -341,7 +341,7 @@ impl SimulationState {
             .map(|particle| {
                 if particle.inert {
                     0.0
-                }else {
+                } else {
                     0.5 * particle.get_mass() * particle.get_vel().length_squared()
                 }
             })
