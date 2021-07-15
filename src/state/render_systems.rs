@@ -24,6 +24,10 @@ pub fn update_particles_renders(
         } else {
             *mat = particle_mats.white.clone();
         }
+
+        if particle.inert {
+            *mat = particle_mats.red.clone();
+        }
     }
 }
 
@@ -156,6 +160,7 @@ fn create_line_mesh(x: f32, y: f32, z: f32) -> Mesh {
 pub struct ParticleMats {
     white: Handle<StandardMaterial>,
     blue: Handle<StandardMaterial>,
+    red: Handle<StandardMaterial>,
 }
 
 pub fn setup_particles(
@@ -173,6 +178,12 @@ pub fn setup_particles(
 
     let blue_mat = materials.add(StandardMaterial {
         base_color: Color::CYAN,
+        unlit: false,
+        ..Default::default()
+    });
+
+    let red_mat = materials.add(StandardMaterial {
+        base_color: Color::PINK,
         unlit: false,
         ..Default::default()
     });
@@ -198,6 +209,7 @@ pub fn setup_particles(
     commands.insert_resource(ParticleMats {
         white: white_mat,
         blue: blue_mat,
+        red: red_mat
     })
 }
 
