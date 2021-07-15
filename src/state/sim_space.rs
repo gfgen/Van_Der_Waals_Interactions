@@ -1,4 +1,5 @@
 use super::physics;
+use super::particle::Particle;
 use bevy::prelude::Vec3;
 use itertools::iproduct;
 use ndarray::Array3;
@@ -23,7 +24,7 @@ impl Grid {
 
     // Calculate the interactions between particles using the grid approximation
     // Return (accelerations, potential energies, # of neighbors)
-    pub fn calculate_force(&self, particles: &Vec<Vec3>) -> (Vec<Vec3>, Vec<f32>, Vec<usize>) {
+    pub fn calculate_force(&self, particles: &Vec<Particle>) -> (Vec<Vec3>, Vec<f32>, Vec<usize>) {
         let (grid, particle_locations) = self.make_grid(particles);
         let (accelerations, (potential_energies, neighbors)) = particle_locations
             .par_iter()
@@ -44,7 +45,7 @@ impl Grid {
         &self,
         tpid: usize,                // target particle index
         loc: (usize, usize, usize), // target particle grid location
-        particles: &Vec<Vec3>,      // Set of all particle positions
+        particles: &Vec<Particle>,      // Set of all particle positions
         grid: &Array3<Vec<usize>>,  // division grid
     ) -> (Vec3, (f32, usize)) {
         let relevant_grid_points = self.generate_neighbor_grid_loc(loc, grid);
@@ -53,12 +54,12 @@ impl Grid {
             .into_iter()
             .flat_map(|(x, y, z)| &grid[[x, y, z]]) // retrieve particle ids from grid points
             .filter(|&&pid| pid != tpid) // remove target particle id
-            .map(|&pid| particles[pid]); // retrieve particles from particle ids
+            .map(|&pid| &particles[pid]); // retrieve particles from particle ids
 
         let mut total_force = Vec3::ZERO;
         let mut total_potential = 0.0;
         let mut total_neighbor = 0;
-        let target_particle = particles[tpid];
+        let target_particle = &particles[tpid];
         // iterate through relevant particles, sum up forces and potentials
         for other_particle in relevant_particles {
             let range = self.unit_size * self.reach as f32;
@@ -102,9 +103,9 @@ impl Grid {
     // Returns a Grid object that contains a list of particle indices
     //     and a list of locations of the corresponding particles on the grid
     // to be used internally
-    fn make_grid(&self, ps: &Vec<Vec3>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
+    fn make_grid(&self, ps: &Vec<Particle>) -> (Array3<Vec<usize>>, Vec<(usize, usize, usize)>) {
         // get a list of positional indicies from the particles
-        let grid_locations: Vec<_> = ps.par_iter().map(|&p| self.find_grid_location(p)).collect();
+        let grid_locations: Vec<_> = ps.par_iter().map(|p| self.find_grid_location(p.get_pos())).collect();
 
         // find the smallest indexes to set the position of the origin
         let init_min = std::isize::MAX;
@@ -168,7 +169,7 @@ pub struct Boundary {
 }
 
 impl Boundary {
-    const MIN_LEN: f32 = 2.0; // Minimum length of each side of the box
+    const MIN_LEN: f32 = 1.0; // Minimum length of each side of the box
     const DEFLECT_STR: f32 = 10000.0;
 
     // Set up a boundary with default config
