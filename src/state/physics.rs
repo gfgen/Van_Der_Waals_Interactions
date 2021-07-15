@@ -36,17 +36,16 @@ pub fn vdw_interaction(targ: &Particle, other: &Particle, range: f32) -> (Vec3, 
     let range_unit12 = range_unit6.powi(2);
 
     // this is the potential energy between two non-interacting particles need to shift this point to zero
-    let mut free_potential = interaction_intensity * repulsion_intensity / 12.0 / range_unit12 * R0;
+    let mut potential_adjusted = 0.0;
     if !targ.inert && !other.inert {
+        let mut free_potential = interaction_intensity * repulsion_intensity / 12.0 / range_unit12 * R0;
         free_potential -= interaction_intensity / 6.0 / range_unit6 * R0;
-    }
 
-    let mut potential = interaction_intensity * repulsion_intensity / 12.0 / r_unit12 * R0;
-    if !targ.inert && !other.inert {
+        let mut potential = interaction_intensity * repulsion_intensity / 12.0 / r_unit12 * R0;
         potential -= interaction_intensity / 6.0 / r_unit6 * R0;
-    }
 
-    let potential_adjusted = (potential - free_potential) / 2.0;
+        potential_adjusted = (potential - free_potential) / 2.0;
+    }
 
     // determine neighbor
     let neighbor_threshold = 4.0 * R0.powi(2);

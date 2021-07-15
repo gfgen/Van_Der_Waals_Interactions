@@ -338,7 +338,13 @@ impl SimulationState {
         self.energy.kinetic = self
             .particles
             .iter_mut()
-            .map(|particle| 0.5 * particle.get_mass() * particle.get_vel().length_squared())
+            .map(|particle| {
+                if particle.inert {
+                    0.0
+                }else {
+                    0.5 * particle.get_mass() * particle.get_vel().length_squared()
+                }
+            })
             .sum();
 
         // update heat injection per time step
