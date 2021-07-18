@@ -18,6 +18,7 @@ use bevy_flycam::NoCameraPlayerPlugin;
 use state::state_generator::Initialize;
 
 fn main() -> Result<(), state::error::InvalidParamError> {
+    println!("E,KE");
     let vdw_simulation = state::SimulationPrototype::new()
         .set_bound_x(15.0)
         .set_bound_y(15.0)

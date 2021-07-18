@@ -6,6 +6,7 @@ const R0: f32 = 0.15;
 
 // calculate force and potential on position 1
 pub fn vdw_interaction(targ: &Particle, other: &Particle, range: f32) -> (Vec3, f32, usize) {
+    let not_inert = !targ.inert && !other.inert;
     let r = targ.get_pos() - other.get_pos();
     let r_norm_sqr = r.length_squared();
 
@@ -21,12 +22,12 @@ pub fn vdw_interaction(targ: &Particle, other: &Particle, range: f32) -> (Vec3, 
     let r_unit12 = r_unit6.powi(2);
     let r_unit14 = r_unit6 * r_unit8;
 
-    let interaction_intensity = 12.0;
-    let repulsion_intensity = 0.5;
+    let interaction_intensity = 24.0;
+    let repulsion_intensity = if not_inert { 0.5 } else { 4.0 };
 
     let mut force = interaction_intensity * repulsion_intensity / r_unit14 * r_unit;
 
-    if !targ.inert && !other.inert {
+    if not_inert {
         force -= interaction_intensity / r_unit8 * r_unit;
     }
 
@@ -37,7 +38,7 @@ pub fn vdw_interaction(targ: &Particle, other: &Particle, range: f32) -> (Vec3, 
 
     // this is the potential energy between two non-interacting particles need to shift this point to zero
     let mut potential_adjusted = 0.0;
-    if !targ.inert && !other.inert {
+    if not_inert {
         let mut free_potential =
             interaction_intensity * repulsion_intensity / 12.0 / range_unit12 * R0;
         free_potential -= interaction_intensity / 6.0 / range_unit6 * R0;

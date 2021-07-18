@@ -25,14 +25,17 @@ pub trait Initialize: Sized {
             pos = pos.min(bound.hi_corner());
             pos = pos.max(bound.lo_corner());
 
+            let inert = rng.gen_bool(0.5);
+            let mass = if inert { 10.0 } else { 1.0 }; 
             particles.push(
-                Particle::new(rng.gen_bool(0.5))
+                Particle::new(inert)
                     .set_pos(pos.x, pos.y, pos.z)
                     .set_vel(
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
                         rng.sample::<f32, _>(StandardNormal) * temp,
-                    ),
+                    )
+                    .set_mass(mass),
             );
         }
         self.set_particles(prune(particles))
