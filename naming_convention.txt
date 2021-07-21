@@ -1,0 +1,4 @@
+cube: cuboid repulsion force
+double well: nested potential
+inert: mixed in inert particles usually at P = 40
+    * P20: P = 20
